@@ -1,4 +1,5 @@
 venv
 *.pyc
+.DS_Store
 mmServer/custom_settings.py
 

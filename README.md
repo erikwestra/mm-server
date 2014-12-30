@@ -8,6 +8,8 @@ the following server-side functionality:
 <br/><br/>
  * Viewing the publically-visible parts of another user's profile.
 <br/><br/>
+ * Storing, retrieving and updating profile pictures.
+<br/><br/>
  * Storing the encryption key used by a conversation between two users.
 
 Additional functionality may be added in the future.
@@ -40,11 +42,11 @@ object with the following attributes:
 > > A boolean indicating whether the profile location is visible to other
 > > users.
 > 
-> `picture_url`
+> `picture_id`
 > 
-> > The URL of the profile picture uploaded by the user.
+> > The ID of the profile picture uploaded by the user, if any.
 > 
-> `picture_url_visible`
+> `picture_visible`
 > 
 > >  A boolean indicating whether the profile picture is visible to other
 > >  users.
@@ -52,6 +54,13 @@ object with the following attributes:
 Note that the profile object returned by the API will only contain the
 publically-visible portions of the profile if the user is attempting to view
 another user's profile.
+
+
+## Profile Pictures ##
+
+A profile picture is simply an image file which is uploaded to the `mmServer`
+and can be retrieved later on.  Each picture has a unique **Picture ID** which
+is used to identify that picture.
 
 
 ## Authentication ##
@@ -162,6 +171,71 @@ Upon completion, the API endpoint will return an HTTP response code of 200 (OK)
 if the user's profile was successfully deleted.  If the HMAC authentication
 details are missing or invalid, the API endpoint will return an HTTP response
 code of 403 (Forbidden).
+
+**`GET api/picture/<PICTURE-ID>`**
+
+Retrieve a profile picture with the given ID.
+
+If there is a picture with the given ID, the picture's image data will be
+returned.  If there is no picture with that ID, the API endpoint will return an
+HTTP response code of 404 (not found).
+
+Note that this API endpoint does not require any HMAC authentication; pictures
+can always be downloaded if you know the ID.
+
+**`POST api/picture`**
+
+Upload a new picture to the server.  This request must include HMAC
+authentication.  The body of the request should be a string containing the
+following JSON-format object:
+
+>     {account_secret: "...",
+>      picture_filename: "...",
+>      picture_data: "..."
+>     }
+
+where `account_secret` is the account secret to use for uploading this image,
+`picture_filename` is the name of the file (in particular, including the file
+extension for this type of image), and `picture_data` is the raw contents of
+the picture, converted to a base64-format string.
+
+Upon completion, the API endpoint will return a HTTP response code of 201
+(Created) if the picture was successfully uploaded, and the body of the
+response will be a string containing the picture ID for the newly-uploaded
+picture.  If the HMAC authentication details are missing or invalid, the API
+endpoint will return an HTTP response code of 403 (Forbidden).
+
+**`PUT api/picture/<PICTURE-ID>`**
+
+Update an existing picture on the server.  This API endpoint must use HMAC
+authentication.  The body of the request should be a string containing the
+following JSON-format object:
+
+>     {picture_filename: "...",
+>      picture_data: "..."
+>     }
+
+The fields have the same meaning as for the **`POST`** endpoint, above.  Note
+that the picture can only be updated if the `account_secret` in the HMAC header
+matches the account secret used when the picture was first created.
+
+Upon completion, this API endpoint will return an HTTP response code of 200
+(OK) if the picture was successfully updated.  If the HMAC authentication
+details are missing or invalid, the API endpoint will return an HTTP response
+code of
+403 (Forbidden).
+
+**`DELETE api/picture/<PICTURE-ID>`**
+
+Delete a picture from the server.  This API endpoint must use HMAC
+authentication.  No additional data is needed in the body of the request.  Note
+that the picture can only be deleted if the `account_secret` in the HMAC header
+matches the account secret used when the picture was first created.
+
+Upon completion, this API endpoint will return an HTTP response code of 200
+(OK) if the picture was successfully deleted.  If the HMAC authentication details
+are missing or invalid, the API endpoint will return an HTTP response code of
+403 (Forbidden).
 
 ***More to come...***
 

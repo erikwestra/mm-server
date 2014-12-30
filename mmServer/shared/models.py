@@ -15,14 +15,27 @@ import django.utils.timezone
 class Profile(models.Model):
     """ A User's profile.
     """
-    global_id           = models.TextField(db_index=True, unique=True)
-    account_secret      = models.TextField()
-    name                = models.TextField()
-    name_visible        = models.BooleanField(default=False)
-    location            = models.TextField()
-    location_visible    = models.BooleanField(default=False)
-    picture_url         = models.TextField()
-    picture_url_visible = models.BooleanField(default=False)
+    global_id        = models.TextField(db_index=True, unique=True)
+    account_secret   = models.TextField()
+    name             = models.TextField()
+    name_visible     = models.BooleanField(default=False)
+    location         = models.TextField()
+    location_visible = models.BooleanField(default=False)
+    picture_id       = models.TextField()
+    picture_visible  = models.BooleanField(default=False)
+
+#############################################################################
+
+class Picture(models.Model):
+    """ An uploaded picture.
+
+        Note that the 'picture_data' field holds the image data in base64
+        encoding.
+    """
+    picture_id       = models.TextField(db_index=True, unique=True)
+    account_secret   = models.TextField()
+    picture_filename = models.TextField()
+    picture_data     = models.TextField()
 
 #############################################################################
 

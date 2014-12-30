@@ -1,6 +1,6 @@
-""" mmServer.api.views
+""" mmServer.api.views.profile
 
-    This module implements the various view functions for the mmServer.api
+    This module implements the "profile" endpoint for the mmServer.api
     application.
 """
 import logging
@@ -20,26 +20,26 @@ logger = logging.getLogger(__name__)
 #############################################################################
 
 @csrf_exempt
-def profile(request, global_id):
-    """ Respond to the "/api/profile/<GLOBAL_ID>" URL.
+def endpoint(request, global_id):
+    """ Respond to the "/api/profile/<GLOBAL_ID>" endpoint.
 
         This view function simply selects an appropriate handler based on the
         HTTP method.
     """
     if request.method == "GET":
-        return get_profile(request, global_id)
+        return profile_GET(request, global_id)
     elif request.method == "POST":
-        return post_profile(request, global_id)
+        return profile_POST(request, global_id)
     elif request.method == "PUT":
-        return put_profile(request, global_id)
+        return profile_PUT(request, global_id)
     elif request.method == "DELETE":
-        return delete_profile(request, global_id)
+        return profile_DELETE(request, global_id)
     else:
-        return HttpREsponseNotAllowed(["GET", "POST", "PUT", "DELETE"])
+        return HttpResponseNotAllowed(["GET", "POST", "PUT", "DELETE"])
 
 #############################################################################
 
-def get_profile(request, global_id):
+def profile_GET(request, global_id):
     """ Respond to the "GET /api/profile/<GLOBAL_ID>" API request.
 
         This is used to retrieve a user's profile.
@@ -60,13 +60,13 @@ def get_profile(request, global_id):
         # If we get here, the caller is authenticated -> return the full
         # profile details.
 
-        response = {'global_id'           : profile.global_id,
-                    'name'                : profile.name,
-                    'name_visible'        : profile.name_visible,
-                    'location'            : profile.location,
-                    'location_visible'    : profile.location_visible,
-                    'picture_url'         : profile.picture_url,
-                    'picture_url_visible' : profile.picture_url_visible}
+        response = {'global_id'        : profile.global_id,
+                    'name'             : profile.name,
+                    'name_visible'     : profile.name_visible,
+                    'location'         : profile.location,
+                    'location_visible' : profile.location_visible,
+                    'picture_id'       : profile.picture_id,
+                    'picture_visible'  : profile.picture_visible}
 
         return HttpResponse(json.dumps(response),
                             mimetype="application/json")
@@ -84,15 +84,15 @@ def get_profile(request, global_id):
             response['name'] = profile.name
         if profile.location_visible:
             response['location'] = profile.location
-        if profile.picture_url_visible:
-            response['picture_url'] = profile.picture_url
+        if profile.picture_visible:
+            response['picture_id'] = profile.picture_id
 
         return HttpResponse(json.dumps(response),
                             mimetype="application/json")
 
 #############################################################################
 
-def post_profile(request, global_id):
+def profile_POST(request, global_id):
     """ Respond to the "POST /api/profile/<GLOBAL_ID>" API request.
 
         This is used to create a user profile.
@@ -126,15 +126,14 @@ def post_profile(request, global_id):
         return HttpResponseForbidden()
 
     profile = Profile()
-    profile.global_id           = global_id
-    profile.account_secret      = account_secret
-    profile.name                = profile_data.get("name" "")
-    profile.name_visible        = profile_data.get("name_visible", False)
-    profile.location            = profile_data.get("location", "")
-    profile.location_visible    = profile_data.get("location_visible", False)
-    profile.picture_url         = profile_data.get("picture_url", "")
-    profile.picture_url_visible = profile_data.get("picture_url_visible",
-                                                   False)
+    profile.global_id        = global_id
+    profile.account_secret   = account_secret
+    profile.name             = profile_data.get("name" "")
+    profile.name_visible     = profile_data.get("name_visible", False)
+    profile.location         = profile_data.get("location", "")
+    profile.location_visible = profile_data.get("location_visible", False)
+    profile.picture_id       = profile_data.get("picture_id", "")
+    profile.picture_visible  = profile_data.get("picture_visible", False)
 
     profile.save()
 
@@ -142,7 +141,7 @@ def post_profile(request, global_id):
 
 #############################################################################
 
-def put_profile(request, global_id):
+def profile_PUT(request, global_id):
     """ Respond to the "PUT /api/profile/<GLOBAL_ID>" API request.
 
         This is used to update a user's profile.
@@ -171,10 +170,10 @@ def put_profile(request, global_id):
         profile.location = changes['location']
     if "location_visible" in changes:
         profile.location_visible = changes['location_visible']
-    if "picture_url" in changes:
-        profile.picture_url = changes['picture_url']
-    if "picture_url_visible" in changes:
-        profile.picture_url_visible = changes['picture_url_visible']
+    if "picture_id" in changes:
+        profile.picture_id = changes['picture_id']
+    if "picture_visible" in changes:
+        profile.picture_visible = changes['picture_visible']
 
     profile.save()
 
@@ -182,7 +181,7 @@ def put_profile(request, global_id):
 
 #############################################################################
 
-def delete_profile(request, global_id):
+def profile_DELETE(request, global_id):
     """ Respond to the "DELETE /api/profile/<GLOBAL_ID>" API request.
 
         This is used to delete a user's profile.
@@ -201,8 +200,4 @@ def delete_profile(request, global_id):
     profile.delete()
 
     return HttpResponse(status=200)
-
-#############################################################################
-
-# More to come...
 

@@ -50,6 +50,25 @@ def calc_unique_global_id():
 
 #############################################################################
 
+def calc_unique_picture_id():
+    """ create and return a new random picture_id value.
+    """
+    while True:
+        picture_id = random_string()
+        try:
+            existing_picture = Picture.objects.get(picture_id=picture_id)
+        except Picture.DoesNotExist:
+            existing_picture = None
+
+        if existing_picture == None:
+            break
+        else:
+            continue # Keep trying until we get a unique global_id.
+
+    return picture_id
+
+#############################################################################
+
 def calc_hmac_headers(method, url, body, account_secret):
     """ Return the HTTP headers to use for an HMAC-authenticated request.
 
@@ -89,12 +108,34 @@ def calc_hmac_headers(method, url, body, account_secret):
 
 #############################################################################
 
+def normalize_request_headers(request):
+    """ Normalize the request headers for the given HTTP request.
+
+        The HTTP headers for the given request (in request.META) are converted
+        to uppercase, and have the string "HTTP_" removed from the start.  This
+        avoids problems with different headers while unit testing versus
+        running the live system.
+
+        Upon completion, we return a dictionary mapping normalized request
+        headers to their associated values.
+    """
+    headers = {}
+    for header in request.META.keys():
+        normalized_header = header.upper()
+        if normalized_header.startswith("HTTP_"):
+            normalized_header = normalized_header[5:]
+        headers[normalized_header] = request.META[header]
+    return headers
+
+#############################################################################
+
 def has_hmac_headers(request):
     """ Return True if the given request includes HMAC-authentication headers.
     """
-    if "HTTP_AUTHORIZATION" not in request.META: return False
-    if "HTTP_CONTENT_MD5"   not in request.META: return False
-    if "HTTP_NONCE"         not in request.META: return False
+    headers = normalize_request_headers(request)
+    if "AUTHORIZATION" not in headers: return False
+    if "CONTENT_MD5"   not in headers: return False
+    if "NONCE"         not in headers: return False
     return True
 
 #############################################################################
@@ -117,14 +158,16 @@ def check_hmac_authentication(request, account_secret):
         If the given request's HMAC-authentication headers are correct for the
         given account secret, we return True.
     """
+    headers = normalize_request_headers(request)
+
     NonceValue.objects.purge()
 
     http_method      = request.method
     url              = request.path
 
-    hmac_auth_string = request.META.get("HTTP_AUTHORIZATION")
-    content_md5      = request.META.get("HTTP_CONTENT_MD5")
-    nonce            = request.META.get("HTTP_NONCE")
+    hmac_auth_string = headers.get("AUTHORIZATION")
+    content_md5      = headers.get("CONTENT_MD5")
+    nonce            = headers.get("NONCE")
 
     if hmac_auth_string == None or content_md5 == None or nonce == None:
         logger.warn("HMAC auth failed due to missing HTTP headers.")
