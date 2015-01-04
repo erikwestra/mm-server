@@ -39,6 +39,24 @@ class Picture(models.Model):
 
 #############################################################################
 
+class Conversation(models.Model):
+    """ A conversation between two users.
+    """
+    global_id_1    = models.TextField(db_index=True)
+    global_id_2    = models.TextField(db_index=True)
+    hidden_1       = models.BooleanField(default=False)
+    hidden_2       = models.BooleanField(default=False)
+    last_message   = models.TextField(null=True)
+    last_timestamp = models.DateTimeField(null=True)
+    num_unread_1   = models.IntegerField()
+    num_unread_2   = models.IntegerField()
+
+
+    class Meta:
+        unique_together = ("global_id_1", "global_id_2")
+
+#############################################################################
+
 class NonceValueManager(models.Manager):
     """ A custom manager for the NonceValue database table.
     """

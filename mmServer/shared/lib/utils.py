@@ -3,11 +3,14 @@
     This module define various utility functions used by the mmServer system.
 """
 import base64
+import datetime
 import hashlib
 import logging
 import random
 import string
 import uuid
+
+from django.utils import timezone
 
 from mmServer.shared.models import *
 
@@ -212,4 +215,13 @@ def check_hmac_authentication(request, account_secret):
     # If we get here, the HMAC authentication succeeded.  Whew!
 
     return True
+
+#############################################################################
+
+def datetime_to_unix_timestamp(datetime_in_utc):
+    """ Convert a datetime.datetime object (in UTC) into a unix timestamp.
+    """
+    unix_epoch = datetime.datetime(1970, 1, 1, tzinfo=timezone.utc)
+    delta      = datetime_in_utc - unix_epoch
+    return int(delta.seconds + delta.days * 86400)
 
