@@ -4,6 +4,7 @@
     application.
 """
 import logging
+import uuid
 
 from django.http                  import *
 from django.views.decorators.csrf import csrf_exempt
@@ -89,6 +90,7 @@ def conversation_GET(request):
     if my_global_id == conversation.global_id_1:
         adapted = {'my_global_id'    : conversation.global_id_1,
                    'their_global_id' : conversation.global_id_2,
+                   'encryption_key'  : conversation.encryption_key,
                    'hidden'          : conversation.hidden_1,
                    'last_message'    : conversation.last_message,
                    'last_timestamp'  : timestamp,
@@ -96,6 +98,7 @@ def conversation_GET(request):
     else:
         adapted = {'my_global_id'    : conversation.global_id_2,
                    'their_global_id' : conversation.global_id_1,
+                   'encryption_key'  : conversation.encryption_key,
                    'hidden'          : conversation.hidden_2,
                    'last_message'    : conversation.last_message,
                    'last_timestamp'  : timestamp,
@@ -161,6 +164,7 @@ def conversation_POST(request):
     conversation = Conversation()
     conversation.global_id_1    = my_global_id
     conversation.global_id_2    = their_global_id
+    conversation.encryption_key = uuid.uuid4().hex
     conversation.hidden_1       = False
     conversation.hidden_2       = False
     conversation.last_message   = None

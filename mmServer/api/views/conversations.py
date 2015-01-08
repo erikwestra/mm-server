@@ -64,6 +64,7 @@ def conversations_GET(request, global_id):
 
         conversations.append({'my_global_id'    : conversation.global_id_1,
                               'their_global_id' : conversation.global_id_2,
+                              'encryption_key'  : conversation.encryption_key,
                               'hidden'          : conversation.hidden_1,
                               'last_message'    : conversation.last_message,
                               'last_timestamp'  : timestamp,
@@ -78,6 +79,7 @@ def conversations_GET(request, global_id):
 
         conversations.append({'my_global_id'    : conversation.global_id_2,
                               'their_global_id' : conversation.global_id_1,
+                              'encryption_key'  : conversation.encryption_key,
                               'hidden'          : conversation.hidden_2,
                               'last_message'    : conversation.last_message,
                               'last_timestamp'  : timestamp,

@@ -698,6 +698,7 @@ class ConversationTestCase(django.test.TestCase):
                 conversation.hidden_1    = hidden_by_them
                 conversation.hidden_2    = hidden_by_me
 
+            conversation.encryption_key = utils.random_string()
             conversation.last_message   = utils.random_string()
             conversation.last_timestamp = timezone.now()
             conversation.num_unread_1   = 0
@@ -739,6 +740,7 @@ class ConversationTestCase(django.test.TestCase):
         for conversation in data['conversations']:
             self.assertItemsEqual(conversation.keys(), ["my_global_id",
                                                         "their_global_id",
+                                                        "encryption_key",
                                                         "hidden",
                                                         "last_message",
                                                         "last_timestamp",
@@ -787,10 +789,12 @@ class ConversationTestCase(django.test.TestCase):
 
         last_message   = utils.random_string()
         last_timestamp = timezone.now()
+        encryption_key = utils.random_string()
 
         conversation = Conversation()
         conversation.global_id_1    = my_global_id
         conversation.global_id_2    = their_global_id
+        conversation.encryption_key = encryption_key
         conversation.hidden_1       = True
         conversation.hidden_2       = False
         conversation.last_message   = last_message
@@ -828,6 +832,7 @@ class ConversationTestCase(django.test.TestCase):
 
         self.assertItemsEqual(conversation.keys(), ["my_global_id",
                                                     "their_global_id",
+                                                    "encryption_key",
                                                     "hidden",
                                                     "last_message",
                                                     "last_timestamp",
@@ -835,6 +840,7 @@ class ConversationTestCase(django.test.TestCase):
 
         self.assertEqual(conversation['my_global_id'], my_global_id)
         self.assertEqual(conversation['their_global_id'], their_global_id)
+        self.assertEqual(conversation['encryption_key'], encryption_key)
         self.assertEqual(conversation['hidden'], True)
         self.assertEqual(conversation['last_message'], last_message)
         self.assertEqual(conversation['last_timestamp'],
@@ -908,6 +914,7 @@ class ConversationTestCase(django.test.TestCase):
                                     global_id_1=their_global_id,
                                     global_id_2=my_global_id)
 
+        self.assertNotIn(conversation.encryption_key, [None, ""])
         self.assertEqual(conversation.hidden_1,       False)
         self.assertEqual(conversation.hidden_2,       False)
         self.assertEqual(conversation.last_message,   None)
@@ -955,6 +962,7 @@ class ConversationTestCase(django.test.TestCase):
         conversation = Conversation()
         conversation.global_id_1    = my_global_id
         conversation.global_id_2    = their_global_id
+        conversation.encryption_key = utils.random_string()
         conversation.hidden_1       = False
         conversation.hidden_2       = False
         conversation.last_message   = last_message

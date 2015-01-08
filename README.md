@@ -81,6 +81,10 @@ following fields:
 > 
 > > The global ID of the second user in the conversation.
 > 
+> `encryption_key`
+>
+> > A string used to encrypt messages between these two users.
+> 
 > `hidden_1`
 > 
 > > Has the first user hidden this conversation?

@@ -44,6 +44,7 @@ class Conversation(models.Model):
     """
     global_id_1    = models.TextField(db_index=True)
     global_id_2    = models.TextField(db_index=True)
+    encryption_key = models.TextField()
     hidden_1       = models.BooleanField(default=False)
     hidden_2       = models.BooleanField(default=False)
     last_message   = models.TextField(null=True)
