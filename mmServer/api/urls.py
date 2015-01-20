@@ -18,5 +18,9 @@ urlpatterns = patterns('',
                                    'mmServer.api.views.conversations.endpoint'),
 
     url(r'^conversation$', 'mmServer.api.views.conversation.endpoint'),
+
+    url(r'^messages$', 'mmServer.api.views.messages.endpoint'),
+
+    url(r'^message$', 'mmServer.api.views.message.endpoint')
 )
 

@@ -1,8 +1,13 @@
 Django==1.6
 South==1.0.1
+backports.ssl-match-hostname==3.4.0.2
 distribute==0.6.34
 dj-database-url==0.3.0
 gunicorn==19.1.1
+mock==1.0.1
 psycopg2==2.5.4
+pycrypto==2.6.1
 simplejson==3.6.5
+six==1.9.0
+websocket-client==0.23.0
 wsgiref==0.1.2

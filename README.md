@@ -139,10 +139,55 @@ This ensures that each user sees the conversation from their particular point
 of view, while still having a single global conversation record for both users.
 
 
+## Messages ##
+
+A **message** is the unit of communication between users.  Within the API, a
+message consists of the following information:
+
+> `conversation`
+> 
+> > A link to the conversation this message is part of.
+> 
+> `hash`
+> 
+> > A string uniquely identifying this message.
+> 
+> `timestamp`
+> 
+> > The date and time when this message was sent, as a unix timestamp value in
+> > UTC.
+> 
+> `sender_global_id`
+> 
+> > The global ID of the user who sent this message.
+> 
+> `recipient_global_id`
+> 
+> > The global ID the user who received this message.
+> 
+> `sender_account_id`
+> 
+> > The Ripple account ID of the user who sent this message.
+> 
+> `recipient_account_id`
+> 
+> > The Ripple account ID of the user who received this message.
+> 
+> `text`
+> 
+> > The text of the message.  Note that this will be encrypted using the
+> > conversation's encryption key.
+> 
+> `error`
+> 
+> > If the message failed to be sent, this will be a string describing what
+> > went wrong.
+
+
 ## Authentication ##
 
-To ensure that a user can only update or retrieve the full contents of their
-own profile, we use Hash-based Message Authentication (HMAC) based on the
+To ensure that a user can only view or update the information they're supposed
+to have access to, we use Hash-based Message Authentication (HMAC) based on the
 account secret.  Before making a request that requires authentication, the
 client should do the following:
 
@@ -511,4 +556,105 @@ an HTTP response code of 409 (Conflict).  In all cases, the body of the
 response will be empty.
 
 More actions may be added in the future as they are needed.
+
+
+### Endpoints for the Message Resource ###
+
+**`GET api/messages`**
+
+Obtain a list of messages.  This API endpoint must use HMAC authentication.
+The following query-string parameters are required:
+
+> `my_global_id`
+> 
+> > The current user's global ID.
+> 
+> `their_global_id`
+> 
+> > The other user's global ID.
+
+In addition, the caller may supply the following optional parameter:
+
+> `anchor`
+> 
+> > A string used to only return messages which have been sent, or failed to
+> > send, since the last time a call was made to the `GET api/messages`
+> > endpoint.
+
+If the `anchor` parameter is supplied, the API will return only those messages
+which have been sent, or failed to send, since the given anchor value was
+calculated.  Without the `anchor` parameter, the API will return a list of all
+non-pending messages sent between these two users.
+
+> _**Note**: the current user must have an existing profile for this API
+> endpoint to work._
+
+Upon completion, this API endpoint will return an HTTP response code of 200
+(OK) if the request was successful.  The body of the response will be a string
+containing the following JSON-format object:
+
+>     {messages: [
+>          {hash: "...",
+>           timestamp: 1420173182,
+>           sender_global_id: "...",
+>           recipient_global_id: "...",
+>           sender_account_id: "...",
+>           recipient_account_id: "...",
+>           text: "...",
+>           error: "..."},
+>          ...
+>      ],
+>      next_anchor: "..."
+>     }
+
+Each entry in the `messages` list is an object with the details of the message,
+as described in the Messages section, above.  The `error` field will only be
+present if the message failed to be sent.
+
+Only messages which have been successfully sent, or which failed to send, will
+be included in the returned list -- pending messages will only appear once they
+have succeeded or failed.  Note that failed messages will only be included if
+the `my_global_id` value is equal to the `sender_global_id`; this means that
+the user will only see failed messages that they themselves tried to send.
+
+The `next_anchor` value is a string which can be used to make another call to
+the `GET api/messages` endpoint to find any new messages which have been sent
+(or failed) since the last time this endpoint was called.
+
+If the HMAC authentication details are missing or invalid, the API endpoint
+will return an HTTP response code of 403 (Forbidden).  If there is no user
+profile for either of the supplied global ID values, the API endpoint will
+return an HTTP response code of 404 (Not Found).
+
+**`POST api/message`**
+
+Attempt to send a message.  This API endpoint must use HMAC authentication.
+The body of the request should be a string containing the following JSON-format
+object:
+
+>     {message: {
+>           sender_global_id: "...",
+>           recipient_global_id: "...",
+>           sender_account_id: "...",
+>           recipient_account_id: "...",
+>           text: "..."}
+>     }
+
+If the message was accepted, the API endpoint will return an HTTP response code
+of 202 (Accepted).  If the message was rejected right away, the API endpoint
+will return an HTTP response code of 400 (Bad Request), and the body of the
+response will be a string containing the error returned by the Ripple server.
+
+Note that the message will initially be placed in a list of "pending" messages.
+The server will then monitor the message, and make the message permanent once
+the Ripple network has either accepted or rejected the message.  Only then will
+the message appear in the list of messages returned by the `GET api/messages`
+endpoint.
+
+> _**Note**: the sending user must have an existing profile for this API
+> endpoint to work._
+
+If the HMAC authentication details are missing or invalid, the API endpoint
+will return an HTTP response code of 403 (Forbidden).  If some required fields
+are missing, the API will return a response code of 400 (Bad Request).
 

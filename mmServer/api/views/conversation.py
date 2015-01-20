@@ -13,7 +13,7 @@ from django.utils                 import timezone
 import simplejson as json
 
 from mmServer.shared.models import *
-from mmServer.shared.lib    import utils
+from mmServer.shared.lib    import utils, encryption
 
 #############################################################################
 
@@ -164,7 +164,7 @@ def conversation_POST(request):
     conversation = Conversation()
     conversation.global_id_1    = my_global_id
     conversation.global_id_2    = their_global_id
-    conversation.encryption_key = uuid.uuid4().hex
+    conversation.encryption_key = encryption.generate_random_key()
     conversation.hidden_1       = False
     conversation.hidden_2       = False
     conversation.last_message   = None

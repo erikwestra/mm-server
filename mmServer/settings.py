@@ -41,6 +41,7 @@ import_setting("DEBUG_LOGGING_DESTINATION",              "file")
 # NOTE: KEEP_NONCE_VALUES_FOR is measured in days.  If this has the value
 # "none", the None values are kept forever.
 import_setting("KEEP_NONCE_VALUES_FOR",                  None)
+import_setting("RIPPLED_SERVER_URL",                     None)
 
 #############################################################################
 
@@ -129,17 +130,19 @@ if ENABLE_DEBUG_LOGGING:
             {'level'     : "DEBUG",
              'class'     : "logging.FileHandler",
              'filename'  : os.path.join(LOG_DIR, "debug.log"),
+             'filters'   : [],
              'formatter' : "timestamped"}
     elif DEBUG_LOGGING_DESTINATION == "console":
         LOGGING['handlers']['debugger_log'] = \
             {'level'     : "DEBUG",
              'class'     : "logging.StreamHandler",
+             'filters'   : [],
              'formatter' : "plain"}
 
     LOGGING['loggers']['mmServer'] = \
         {'handlers'  : ['debugger_log'],
          'level'     : "DEBUG",
-         'propogate' : False}
+         'propogate' : True}
 
 # Set up our database.
 
@@ -155,3 +158,4 @@ else:
 
 CORS_ALLOWED_METHODS = "POST, GET, PUT, DELETE, OPTIONS"
 CORS_ALLOWED_HEADERS = "Content-Type, Authorization, Content-MD5, Nonce"
+

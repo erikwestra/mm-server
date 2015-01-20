@@ -58,6 +58,45 @@ class Conversation(models.Model):
 
 #############################################################################
 
+class PendingMessage(models.Model):
+    """ A message sent batween two users, that hasn't been finalised yet.
+
+        A "pending" message is one that has been submitted to the mmServer, but
+        hasn't yet been accepted by the Ripple network.  Once the message has
+        been either accepted or rejected by the Ripple network, a new
+        FinalMessage record will be created with the contents of this message,
+        and the PendingMessage record will be deleted.
+    """
+    conversation         = models.ForeignKey(Conversation)
+    hash                 = models.TextField()
+    timestamp            = models.DateTimeField()
+    sender_global_id     = models.TextField()
+    recipient_global_id  = models.TextField()
+    sender_account_id    = models.TextField()
+    recipient_account_id = models.TextField()
+    text                 = models.TextField()
+    last_status_check    = models.DateTimeField(null=True, db_index=True)
+
+#############################################################################
+
+class FinalMessage(models.Model):
+    """ A message sent between two users that has been finalized.
+
+        A "final" message is one that has been either accepted or rejected by
+        the Ripple network.
+    """
+    conversation         = models.ForeignKey(Conversation)
+    hash                 = models.TextField(null=True)
+    timestamp            = models.DateTimeField()
+    sender_global_id     = models.TextField(db_index=True)
+    recipient_global_id  = models.TextField(db_index=True)
+    sender_account_id    = models.TextField()
+    recipient_account_id = models.TextField()
+    text                 = models.TextField()
+    error                = models.TextField(null=True)
+
+#############################################################################
+
 class NonceValueManager(models.Manager):
     """ A custom manager for the NonceValue database table.
     """

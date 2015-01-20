@@ -8,15 +8,17 @@ import hashlib
 import logging
 import random
 import string
+import urllib2
 import uuid
 
 from django.utils import timezone
+import simplejson as json
 
 from mmServer.shared.models import *
 
 #############################################################################
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("mmServer")
 
 #############################################################################
 
