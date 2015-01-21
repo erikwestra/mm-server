@@ -30,10 +30,13 @@ def endpoint(request):
         This view function simply selects an appropriate handler based on the
         HTTP method.
     """
-    if request.method == "POST":
-        return message_POST(request)
-    else:
-        return HttpResponseNotAllowed(["POST"])
+    try:
+        if request.method == "POST":
+            return message_POST(request)
+        else:
+            return HttpResponseNotAllowed(["POST"])
+    except:
+        return utils.exception_response()
 
 #############################################################################
 

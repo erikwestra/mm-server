@@ -26,16 +26,19 @@ def endpoint(request, global_id):
         This view function simply selects an appropriate handler based on the
         HTTP method.
     """
-    if request.method == "GET":
-        return profile_GET(request, global_id)
-    elif request.method == "POST":
-        return profile_POST(request, global_id)
-    elif request.method == "PUT":
-        return profile_PUT(request, global_id)
-    elif request.method == "DELETE":
-        return profile_DELETE(request, global_id)
-    else:
-        return HttpResponseNotAllowed(["GET", "POST", "PUT", "DELETE"])
+    try:
+        if request.method == "GET":
+            return profile_GET(request, global_id)
+        elif request.method == "POST":
+            return profile_POST(request, global_id)
+        elif request.method == "PUT":
+            return profile_PUT(request, global_id)
+        elif request.method == "DELETE":
+            return profile_DELETE(request, global_id)
+        else:
+            return HttpResponseNotAllowed(["GET", "POST", "PUT", "DELETE"])
+    except:
+        return utils.exception_response()
 
 #############################################################################
 

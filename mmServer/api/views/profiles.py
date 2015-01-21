@@ -27,10 +27,13 @@ def endpoint(request):
         This view function simply selects an appropriate handler based on the
         HTTP method.
     """
-    if request.method == "GET":
-        return profiles_GET(request)
-    else:
-        return HttpResponseNotAllowed(["GET"])
+    try:
+        if request.method == "GET":
+            return profiles_GET(request)
+        else:
+            return HttpResponseNotAllowed(["GET"])
+    except:
+        return utils.exception_response()
 
 #############################################################################
 

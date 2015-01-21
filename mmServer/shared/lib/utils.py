@@ -8,10 +8,12 @@ import hashlib
 import logging
 import random
 import string
+import traceback
 import urllib2
 import uuid
 
 from django.utils import timezone
+from django.http import HttpResponseServerError
 import simplejson as json
 
 from mmServer.shared.models import *
@@ -226,4 +228,17 @@ def datetime_to_unix_timestamp(datetime_in_utc):
     unix_epoch = datetime.datetime(1970, 1, 1, tzinfo=timezone.utc)
     delta      = datetime_in_utc - unix_epoch
     return int(delta.seconds + delta.days * 86400)
+
+#############################################################################
+
+def exception_response():
+    """ Return an HttpResponse object for when an exception occurs.
+
+        This should be called when an exception was caught using try...except;
+        we get the details of the exception, and return a short plain-text
+        error message explaining what went wrong, wrapped in an HttpResponse
+        object.
+    """
+    err_msg = traceback.format_exc(2)
+    return HttpResponseServerError(err_msg)
 

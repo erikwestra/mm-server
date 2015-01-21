@@ -30,10 +30,13 @@ def endpoint(request, global_id):
         This view function simply selects an appropriate handler based on the
         HTTP method.
     """
-    if request.method == "GET":
-        return conversations_GET(request, global_id)
-    else:
-        return HttpResponseNotAllowed(["GET"])
+    try:
+        if request.method == "GET":
+            return conversations_GET(request, global_id)
+        else:
+            return HttpResponseNotAllowed(["GET"])
+    except:
+        return utils.exception_response()
 
 #############################################################################
 

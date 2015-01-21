@@ -28,14 +28,17 @@ def endpoint(request):
         This view function simply selects an appropriate handler based on the
         HTTP method.
     """
-    if request.method == "GET":
-        return conversation_GET(request)
-    elif request.method == "POST":
-        return conversation_POST(request)
-    elif request.method == "PUT":
-        return conversation_PUT(request)
-    else:
-        return HttpResponseNotAllowed(["GET", "POST", "PUT"])
+    try:
+        if request.method == "GET":
+            return conversation_GET(request)
+        elif request.method == "POST":
+            return conversation_POST(request)
+        elif request.method == "PUT":
+            return conversation_PUT(request)
+        else:
+            return HttpResponseNotAllowed(["GET", "POST", "PUT"])
+    except:
+        return utils.exception_response()
 
 #############################################################################
 

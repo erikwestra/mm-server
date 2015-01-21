@@ -29,19 +29,22 @@ def endpoint(request, picture_id=None):
         This view function simply selects an appropriate handler based on the
         HTTP method.
     """
-    if request.method == "GET":
-        return picture_GET(request, picture_id)
-    elif request.method == "POST":
-        if picture_id != None:
-            return HttpResponseNotFound()
+    try:
+        if request.method == "GET":
+            return picture_GET(request, picture_id)
+        elif request.method == "POST":
+            if picture_id != None:
+                return HttpResponseNotFound()
+            else:
+                return picture_POST(request)
+        elif request.method == "PUT":
+            return picture_PUT(request, picture_id)
+        elif request.method == "DELETE":
+            return picture_DELETE(request, picture_id)
         else:
-            return picture_POST(request)
-    elif request.method == "PUT":
-        return picture_PUT(request, picture_id)
-    elif request.method == "DELETE":
-        return picture_DELETE(request, picture_id)
-    else:
-        return HttpResponseNotAllowed(["GET", "POST", "PUT", "DELETE"])
+            return HttpResponseNotAllowed(["GET", "POST", "PUT", "DELETE"])
+    except:
+        return utils.exception_response()
 
 #############################################################################
 
