@@ -31,6 +31,7 @@ def endpoint(request):
         HTTP method.
     """
     try:
+        die()
         if request.method == "POST":
             return message_POST(request)
         else:

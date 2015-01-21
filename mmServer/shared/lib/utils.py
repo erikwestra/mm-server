@@ -8,6 +8,7 @@ import hashlib
 import logging
 import random
 import string
+import sys
 import traceback
 import urllib2
 import uuid
@@ -239,6 +240,16 @@ def exception_response():
         error message explaining what went wrong, wrapped in an HttpResponse
         object.
     """
-    err_msg = traceback.format_exc(2)
-    return HttpResponseServerError(err_msg)
+    exception_type,exception_value,exception_tb = sys.exc_info()
+
+    full_traceback = traceback.extract_tb(exception_tb)
+    part_traceback = full_traceback[-2:] # Get last 2 items.
+
+    error = []
+    for line in traceback.format_list(part_traceback):
+        error.append(line.rstrip())
+
+    error.append(exception_type.__name__ + ":" + str(exception_value))
+
+    return HttpResponseServerError("\n".join(error))
 
