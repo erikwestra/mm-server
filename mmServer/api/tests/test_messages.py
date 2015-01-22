@@ -148,11 +148,11 @@ class MessageTestCase(django.test.TestCase):
         self.assertEqual(rippleMock.call_args_list[0][0][0], "sign")
         self.assertEqual(rippleMock.call_args_list[1][0][0], "submit")
 
-        # Check that a PendingMessage record has been created for this
-        # message.
+        # Check that a Message record has been created for this message.
 
-        message = PendingMessage.objects.get(conversation=conversation)
+        message = Message.objects.get(conversation=conversation)
 
+        self.assertIsNotNone(message.update_id)
         self.assertEqual(message.conversation, conversation)
         self.assertEqual(message.hash, tx_hash)
         self.assertIsNotNone(message.timestamp)
@@ -162,7 +162,8 @@ class MessageTestCase(django.test.TestCase):
         self.assertEqual(message.sender_account_id, sender_account_id)
         self.assertEqual(message.recipient_account_id, recipient_account_id)
         self.assertEqual(message.text, message_text)
-        self.assertIsNone(message.last_status_check)
+        self.assertEqual(message.status, Message.STATUS_PENDING)
+        self.assertIsNone(message.error)
 
     # -----------------------------------------------------------------------
 
@@ -215,14 +216,14 @@ class MessageTestCase(django.test.TestCase):
         sender_account_id    = utils.random_string()
         recipient_account_id = utils.random_string()
 
-        # Create some (finalized) test messages.
+        # Create some test messages.
 
         message_1 = utils.random_string()
         message_2 = utils.random_string()
         message_3 = utils.random_string()
 
         for message_text in [message_1, message_2, message_3]:
-            message = FinalMessage()
+            message = Message()
             message.conversation         = conversation
             message.hash                 = utils.random_string()
             message.timestamp            = timezone.now()
@@ -231,8 +232,9 @@ class MessageTestCase(django.test.TestCase):
             message.sender_account_id    = sender_account_id
             message.recipient_account_id = recipient_account_id
             message.text                 = message_text
+            message.status               = Message.STATUS_SENT
             message.error                = None
-            message.save()
+            message.save_with_new_update_id()
 
         # Calculate the HMAC authentication headers we need to make an
         # authenticated request.
@@ -253,6 +255,9 @@ class MessageTestCase(django.test.TestCase):
                                    "",
                                    content_type="application/json",
                                    **headers)
+        if response.status_code == 500:
+            print response.content
+
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], "application/json")
         data = json.loads(response.content)
@@ -324,7 +329,7 @@ class MessageTestCase(django.test.TestCase):
 
         # Create a dummy pending message.
 
-        message = PendingMessage()
+        message = Message()
         message.conversation         = conversation
         message.hash                 = utils.random_string()
         message.timestamp            = timezone.now()
@@ -333,8 +338,9 @@ class MessageTestCase(django.test.TestCase):
         message.sender_account_id    = sender_account_id
         message.recipient_account_id = recipient_account_id
         message.text                 = utils.random_string()
-        message.last_status_check    = None
-        message.save()
+        message.status               = Message.STATUS_PENDING
+        message.error                = None
+        message.save_with_new_update_id()
 
         # Calculate the HMAC authentication headers we need to make an
         # authenticated request.
@@ -382,8 +388,8 @@ class MessageTestCase(django.test.TestCase):
 
         # Ask the "GET api/messages" endpoint to return the messages for this
         # conversation.  All going well, the endpoint should check with the
-        # Ripple server, see that the message has been validated, and move it
-        # into the list of finalized messages.
+        # Ripple server, see that the message has been validated, and change
+        # the message status to "sent".
 
         url = "/api/messages?my_global_id=" + sender_profile.global_id \
             + "&their_global_id=" + recipient_profile.global_id
@@ -402,39 +408,15 @@ class MessageTestCase(django.test.TestCase):
                                            transaction=message.hash,
                                            binary=False)
 
-        # Check that the pending message has been deleted from the database.
+        # Get the updated Message record.
 
-        try:
-            pending = PendingMessage.objects.get(id=message.id)
-        except PendingMessage.DoesNotExist:
-            pending = None
+        msg = Message.objects.get(conversation=conversation)
+        self.assertIsNotNone(msg)
 
-        self.assertIsNone(pending)
+        # Finally, check that the message details were updated appropriately.
 
-        # Check that the final version has been created in the database.
-
-        try:
-            final = FinalMessage.objects.get(conversation=conversation)
-        except FinalMessage.DoesNotExist:
-            final = None
-        except FinalMessage.MultipleObjectsReturned:
-            final = None
-
-        self.assertIsNotNone(final)
-
-        # Finally, check that the message details were copied across as
-        # expected.
-
-        self.assertEqual(final.conversation,        message.conversation)
-        self.assertEqual(final.hash,                message.hash)
-        self.assertEqual(final.timestamp,           message.timestamp)
-        self.assertEqual(final.sender_global_id,    message.sender_global_id)
-        self.assertEqual(final.recipient_global_id, message.recipient_global_id)
-        self.assertEqual(final.sender_account_id,   message.sender_account_id)
-        self.assertEqual(final.recipient_account_id,
-                                                   message.recipient_account_id)
-        self.assertEqual(final.text,                message.text)
-        self.assertEqual(final.error,               None)
+        self.assertEqual(msg.status, Message.STATUS_SENT)
+        self.assertEqual(msg.error,  None)
 
     # -----------------------------------------------------------------------
 
@@ -443,8 +425,9 @@ class MessageTestCase(django.test.TestCase):
 
             We create a series of messages, and call the "GET api/messages"
             endpoint to get the returned 'next_anchor' value.  We then add some
-            more messages, and call the endpoint again with the supplied anchor
-            to ensure that only the new messages are returned.
+            more messages, and update some existing messages, and then call the
+            endpoint again with the supplied anchor to ensure that only the new
+            and updated messages are returned.
         """
         # Create a profile for the sender.
 
@@ -492,14 +475,14 @@ class MessageTestCase(django.test.TestCase):
         sender_account_id    = utils.random_string()
         recipient_account_id = utils.random_string()
 
-        # Create some (finalized) test messages.
+        # Create some test messages.
 
         message_1 = utils.random_string()
         message_2 = utils.random_string()
         message_3 = utils.random_string()
 
         for message_text in [message_1, message_2, message_3]:
-            message = FinalMessage()
+            message = Message()
             message.conversation         = conversation
             message.hash                 = utils.random_string()
             message.timestamp            = timezone.now()
@@ -508,8 +491,9 @@ class MessageTestCase(django.test.TestCase):
             message.sender_account_id    = sender_account_id
             message.recipient_account_id = recipient_account_id
             message.text                 = message_text
+            message.status               = Message.STATUS_SENT
             message.error                = None
-            message.save()
+            message.save_with_new_update_id()
 
         # Calculate the HMAC authentication headers we need to make an
         # authenticated request.
@@ -538,13 +522,21 @@ class MessageTestCase(django.test.TestCase):
 
         next_anchor = data['next_anchor']
 
-        # Now create two more finalized messages.
+        # Update one of the existing messages.
+
+        msg = Message.objects.order_by("id")[0]
+
+        msg.status = Message.STATUS_FAILED
+        msg.error  = "Failed"
+        msg.save_with_new_update_id()
+
+        # Now create two more messages.
 
         message_4 = utils.random_string()
         message_5 = utils.random_string()
 
         for message_text in [message_4, message_5]:
-            message = FinalMessage()
+            message = Message()
             message.conversation         = conversation
             message.hash                 = utils.random_string()
             message.timestamp            = timezone.now()
@@ -553,8 +545,9 @@ class MessageTestCase(django.test.TestCase):
             message.sender_account_id    = sender_account_id
             message.recipient_account_id = recipient_account_id
             message.text                 = message_text
+            message.status               = Message.STATUS_SENT
             message.error                = None
-            message.save()
+            message.save_with_new_update_id()
 
         # Calculate the HMAC authentication headers we need to make an
         # authenticated request.
@@ -566,8 +559,9 @@ class MessageTestCase(django.test.TestCase):
             account_secret=sender_profile.account_secret
         )
 
-        # Ask the "GET api/messages" endpoint to return any new messages which
-        # have come in since the 'last_anchor' value was calculated.
+        # Ask the "GET api/messages" endpoint to return any new and updated
+        # messages which have come in since the 'last_anchor' value was
+        # calculated.
 
         url = "/api/messages?my_global_id=" + sender_profile.global_id \
             + "&their_global_id=" + recipient_profile.global_id \
@@ -581,10 +575,12 @@ class MessageTestCase(django.test.TestCase):
         self.assertEqual(response['Content-Type'], "application/json")
         data = json.loads(response.content)
 
-        # Check that the updated messages were returned, as expected.
+        # Check that the new and updated messages were returned, as expected.
 
         self.assertItemsEqual(data.keys(), ["messages", "next_anchor"])
-        self.assertEqual(len(data['messages']), 2)
-        self.assertEqual(data['messages'][0]['text'], message_4)
-        self.assertEqual(data['messages'][1]['text'], message_5)
+        self.assertEqual(len(data['messages']), 3)
+
+        self.assertEqual(data['messages'][0]['text'], message_1)
+        self.assertEqual(data['messages'][1]['text'], message_4)
+        self.assertEqual(data['messages'][2]['text'], message_5)
 

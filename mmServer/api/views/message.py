@@ -166,42 +166,25 @@ def message_POST(request):
             error = "Ripple server error submittting transaction: " \
                   + response['error']
 
-    # Create the appropriate type of message record, and return the response
-    # back to the caller.
+    # If there's an error, tell the user about it.
 
-    if error == None:
-
-        # No error -> this is a pending message.
-
-        message = PendingMessage()
-        message.conversation         = conversation
-        message.hash                 = response['result']['tx_json']['hash']
-        message.timestamp            = timezone.now()
-        message.sender_global_id     = sender_global_id
-        message.recipient_global_id  = recipient_global_id
-        message.sender_account_id    = sender_account_id
-        message.recipient_account_id = recipient_account_id
-        message.text                 = text
-        message.last_status_check    = None
-        message.save()
-
-        return HttpResponse(status=202)
-
-    else:
-
-        # Error -> this is a final message that failed right away.
-
-        message = FinalMessage()
-        message.conversation         = conversation
-        message.hash                 = None
-        message.timestamp            = timezone.now()
-        message.sender_global_id     = sender_global_id
-        message.recipient_global_id  = recipient_global_id
-        message.sender_account_id    = sender_account_id
-        message.recipient_account_id = recipient_account_id
-        message.text                 = text
-        message.error                = error
-        message.save()
-
+    if error != None:
         return HttpResponseBadRequest(error)
+
+    # Finally, create the new Message object and tell the user the good news.
+
+    message = Message()
+    message.conversation         = conversation
+    message.hash                 = response['result']['tx_json']['hash']
+    message.timestamp            = timezone.now()
+    message.sender_global_id     = sender_global_id
+    message.recipient_global_id  = recipient_global_id
+    message.sender_account_id    = sender_account_id
+    message.recipient_account_id = recipient_account_id
+    message.text                 = text
+    message.status               = Message.STATUS_PENDING
+    message.error                = None
+    message.save_with_new_update_id()
+
+    return HttpResponse(status=202)
 

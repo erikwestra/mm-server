@@ -178,9 +178,31 @@ message consists of the following information:
 > > The text of the message.  Note that this will be encrypted using the
 > > conversation's encryption key.
 > 
+> 
+> `status`
+> 
+> > The message's current status.  This can be one of the following strings:
+> > 
+> > > `PENDING`
+> > > 
+> > > > The message has been submitted to the Ripple network, but the
+> > > > underlying transaction has not yet gone through.
+> > > 
+> > > `SENT`
+> > > 
+> > > > The message has been sent successfully.
+> > > 
+> > > `READ`
+> > > 
+> > > > The message has been read by the recipient.
+> > > 
+> > > `FAILED`
+> > > 
+> > > > The message could not be sent for some reason.
+> 
 > `error`
 > 
-> > If the message failed to be sent, this will be a string describing what
+> > If the message could not be sent, this will be a string describing what
 > > went wrong.
 
 
@@ -582,9 +604,9 @@ In addition, the caller may supply the following optional parameter:
 > > endpoint.
 
 If the `anchor` parameter is supplied, the API will return only those messages
-which have been sent, or failed to send, since the given anchor value was
-calculated.  Without the `anchor` parameter, the API will return a list of all
-non-pending messages sent between these two users.
+which have had a change in status, since the given anchor value was calculated.
+Without the `anchor` parameter, the API will return a list of all messages sent
+between these two users.
 
 > _**Note**: the current user must have an existing profile for this API
 > endpoint to work._
@@ -601,6 +623,7 @@ containing the following JSON-format object:
 >           sender_account_id: "...",
 >           recipient_account_id: "...",
 >           text: "...",
+>           status: "...",
 >           error: "..."},
 >          ...
 >      ],
@@ -611,15 +634,15 @@ Each entry in the `messages` list is an object with the details of the message,
 as described in the Messages section, above.  The `error` field will only be
 present if the message failed to be sent.
 
-Only messages which have been successfully sent, or which failed to send, will
-be included in the returned list -- pending messages will only appear once they
-have succeeded or failed.  Note that failed messages will only be included if
-the `my_global_id` value is equal to the `sender_global_id`; this means that
-the user will only see failed messages that they themselves tried to send.
+Note that a single message may be returned more than once; if the status of a
+message changes, it will be sent again.  The client should comare the message
+hash to see if the message has already been received, and if so just update the
+existing message's status.  Note that only the `status` and `error` fields will
+ever be updated for a message.
 
 The `next_anchor` value is a string which can be used to make another call to
-the `GET api/messages` endpoint to find any new messages which have been sent
-(or failed) since the last time this endpoint was called.
+the `GET api/messages` endpoint to find any new or updated messages since the
+last time this endpoint was called.
 
 If the HMAC authentication details are missing or invalid, the API endpoint
 will return an HTTP response code of 403 (Forbidden).  If there is no user
@@ -640,19 +663,19 @@ object:
 >           text: "..."}
 >     }
 
+> _**Note**: the sending user must have an existing profile for this API
+> endpoint to work._
+
 If the message was accepted, the API endpoint will return an HTTP response code
 of 202 (Accepted).  If the message was rejected right away, the API endpoint
 will return an HTTP response code of 400 (Bad Request), and the body of the
 response will be a string containing the error returned by the Ripple server.
 
-Note that the message will initially be placed in a list of "pending" messages.
-The server will then monitor the message, and make the message permanent once
-the Ripple network has either accepted or rejected the message.  Only then will
-the message appear in the list of messages returned by the `GET api/messages`
-endpoint.
-
-> _**Note**: the sending user must have an existing profile for this API
-> endpoint to work._
+Note that the message will initially be given a status of "PENDING".  The
+server will then monitor the message, and update the message status as
+appropriate depending on what happens to the message.  The various status
+values for the message will all be received if the client is polling for
+message updates.
 
 If the HMAC authentication details are missing or invalid, the API endpoint
 will return an HTTP response code of 403 (Forbidden).  If some required fields

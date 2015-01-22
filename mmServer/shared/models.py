@@ -9,6 +9,9 @@ from django.db   import models
 from django.conf import settings
 
 import django.utils.timezone
+from django.db.models import Max
+
+from mmServer.shared.lib import dbHelpers
 
 #############################################################################
 
@@ -58,42 +61,58 @@ class Conversation(models.Model):
 
 #############################################################################
 
-class PendingMessage(models.Model):
-    """ A message sent batween two users, that hasn't been finalised yet.
+class Message(models.Model):
+    """ A message sent between two users.
 
-        A "pending" message is one that has been submitted to the mmServer, but
-        hasn't yet been accepted by the Ripple network.  Once the message has
-        been either accepted or rejected by the Ripple network, a new
-        FinalMessage record will be created with the contents of this message,
-        and the PendingMessage record will be deleted.
+        Note that the 'update_id' field is used to let callers poll for new and
+        updated messages.  This field should be incremented each time a message
+        is added or updated.
     """
+    STATUS_PENDING = 0
+    STATUS_SENT    = 2
+    STATUS_READ    = 3
+    STATUS_FAILED  = -1
+
+    STATUS_CHOICES = ((STATUS_PENDING, "PENDING"),
+                      (STATUS_SENT,    "SENT"),
+                      (STATUS_READ,    "READ"),
+                      (STATUS_FAILED,  "FAILED"))
+
+    STATUS_MAP = {STATUS_PENDING : "PENDING",
+                  STATUS_SENT    : "SENT",
+                  STATUS_READ    : "READ",
+                  STATUS_FAILED  : "FAILED"}
+
+    update_id            = models.IntegerField(unique=True, db_index=True)
     conversation         = models.ForeignKey(Conversation)
-    hash                 = models.TextField()
+    hash                 = models.TextField(null=True, db_index=True)
     timestamp            = models.DateTimeField()
     sender_global_id     = models.TextField()
     recipient_global_id  = models.TextField()
     sender_account_id    = models.TextField()
     recipient_account_id = models.TextField()
     text                 = models.TextField()
-    last_status_check    = models.DateTimeField(null=True, db_index=True)
-
-#############################################################################
-
-class FinalMessage(models.Model):
-    """ A message sent between two users that has been finalized.
-
-        A "final" message is one that has been either accepted or rejected by
-        the Ripple network.
-    """
-    conversation         = models.ForeignKey(Conversation)
-    hash                 = models.TextField(null=True)
-    timestamp            = models.DateTimeField()
-    sender_global_id     = models.TextField(db_index=True)
-    recipient_global_id  = models.TextField(db_index=True)
-    sender_account_id    = models.TextField()
-    recipient_account_id = models.TextField()
-    text                 = models.TextField()
+    status               = models.IntegerField(choices=STATUS_CHOICES,
+                                               db_index=True)
     error                = models.TextField(null=True)
+
+
+    def save_with_new_update_id(self):
+        """ Save this message after calculating a new update_id value.
+
+            We set the 'update_id' field to the current highest 'update_id' value
+            in the Message table, plus 1.  This indicates that this message has
+            been updated.  The Message record is then saved into the database.
+        """
+        with dbHelpers.exclusive_access(Message):
+            max_value = Message.objects.all().aggregate(Max('update_id'))
+            if max_value['update_id__max'] == None:
+                next_update_id = 1
+            else:
+                next_update_id = max_value['update_id__max'] + 1
+
+            self.update_id = next_update_id
+            self.save()
 
 #############################################################################
 

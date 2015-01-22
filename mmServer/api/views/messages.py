@@ -95,16 +95,8 @@ def messages_GET(request):
     # the Ripple network for the current status of these messages, and finalize
     # any that have either failed or been accepted into the Ripple ledger.
 
-    cutoff = timezone.now() - datetime.timedelta(seconds=30)
-
     msgs_to_check = []
-    for message in PendingMessage.objects.all():
-        if message.last_status_check == None:
-            msgs_to_check.append(message)
-        elif message.last_status_check < cutoff:
-            msgs_to_check.append(message)
-
-    for msg in msgs_to_check:
+    for msg in Message.objects.filter(status=Message.STATUS_PENDING):
         response = rippleInterface.request("tx", transaction=msg.hash,
                                                  binary=False)
         if response == None:
@@ -116,40 +108,49 @@ def messages_GET(request):
 
         if response['result'].get("validated", False):
             # This message has been validated -> finalize it.
+
             trans_result = response['result']['meta']['TransactionResult']
-
-            final = FinalMessage()
-            final.conversation         = msg.conversation
-            final.hash                 = msg.hash
-            final.timestamp            = msg.timestamp
-            final.sender_global_id     = msg.sender_global_id
-            final.recipient_global_id  = msg.recipient_global_id
-            final.sender_account_id    = msg.sender_account_id
-            final.recipient_account_id = msg.recipient_account_id
-            final.text                 = msg.text
-
             if trans_result == "tesSUCCESS":
-                final.error = None
+                msg.status = Message.STATUS_SENT
+                msg.error  = None
             else:
+                msg.status  = Message.STATUS_FAILED
                 final.error = trans_result
+            msg.save_with_new_update_id()
 
-            final.save()
-            msg.delete()
+    # Go through the list of messages we want to download, and mark any
+    # messages sent to the current user as "read".  Note that this will alter
+    # the update_id for these messages, so we have to do this before we collect
+    # the final list of messages to return to the caller.
 
-    # Collect the finalised messages for this conversation.
+    query = Message.objects.filter(conversation=conversation)
+    if anchor not in[None, ""]:
+        query = query.filter(update_id__gt=anchor)
 
-    messages = []
+    found_messages = []
+    for msg in query:
+        found_messages.append(msg)
 
-    query = FinalMessage.objects.filter(conversation=conversation)
-    if anchor != None:
-        query = query.filter(id__gt=anchor)
+    for msg in found_messages:
+        if ((msg.recipient_global_id == my_global_id) and
+            (msg.status == Message.STATUS_SENT)):
+            msg.status = Message.STATUS_READ
+            msg.save_with_new_update_id()
+
+    # Now collect the list of messages for this conversation.  If the caller
+    # provided an anchor, we only collect the new and updated messages since the
+    # last time this endpoint was called.
+
+    query = Message.objects.filter(conversation=conversation)
+    if anchor not in[None, ""]:
+        query = query.filter(update_id__gt=anchor)
+
+    messages    = []
+    next_anchor = ""
 
     for msg in query.order_by("id"):
-
-        if msg.error != None and msg.sender_global_id != my_global_id:
-            pass # Exclude failed messages sent by the other party.
-
         timestamp = utils.datetime_to_unix_timestamp(msg.timestamp)
+        status    = Message.STATUS_MAP[msg.status]
 
         messages.append({'hash'                 : msg.hash,
                          'timestamp'            : timestamp,
@@ -157,20 +158,17 @@ def messages_GET(request):
                          'recipient_global_id'  : msg.recipient_global_id,
                          'sender_account_id'    : msg.sender_account_id,
                          'recipient_account_id' : msg.recipient_account_id,
-                         'text'                 : msg.text})
+                         'text'                 : msg.text,
+                         'status'               : status})
         if msg.error:
             messages[-1]['error'] = msg.error
 
-    # Calculate the next_anchor value.
-
-    next_anchor = None # initially.
-    for msg in FinalMessage.objects.order_by("-id"):
-        next_anchor = str(msg.id)
-        break
+        if next_anchor == "" or next_anchor < msg.update_id:
+            next_anchor = msg.update_id
 
     # Finally, return the results back to the caller.
 
     return HttpResponse(json.dumps({'messages'    : messages,
-                                    'next_anchor' : next_anchor}),
+                                    'next_anchor' : str(next_anchor)}),
                         mimetype="application/json")
 

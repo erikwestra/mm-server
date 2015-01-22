@@ -10,12 +10,10 @@ import random
 import string
 import sys
 import traceback
-import urllib2
 import uuid
 
-from django.utils import timezone
-from django.http import HttpResponseServerError
-import simplejson as json
+from django.utils     import timezone
+from django.http      import HttpResponseServerError
 
 from mmServer.shared.models import *
 
