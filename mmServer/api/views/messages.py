@@ -11,11 +11,13 @@ import uuid
 from django.http                  import *
 from django.views.decorators.csrf import csrf_exempt
 from django.utils                 import timezone
+from django.db.models             import Max
 
 import simplejson as json
 
 from mmServer.shared.models import *
-from mmServer.shared.lib    import utils, rippleInterface, encryption
+from mmServer.shared.lib    import rippleInterface, encryption
+from mmServer.shared.lib    import utils, dbHelpers
 
 #############################################################################
 
@@ -118,57 +120,64 @@ def messages_GET(request):
                 final.error = trans_result
             msg.save_with_new_update_id()
 
-    # Go through the list of messages we want to download, and mark any
-    # messages sent to the current user as "read".  Note that this will alter
-    # the update_id for these messages, so we have to do this before we collect
-    # the final list of messages to return to the caller.
+    # Perform the actual grabbing of the data with an exclusive table lock.
+    # This prevents other clients from changing the data until we're finished.
 
-    query = Message.objects.filter(conversation=conversation)
-    if anchor not in[None, ""]:
-        query = query.filter(update_id__gt=anchor)
+    with dbHelpers.exclusive_access(Message):
+        # Go through the list of messages we want to download, and mark any
+        # messages sent to the current user as "read".  Note that this will
+        # alter the update_id for these messages, so we have to do this before
+        # we collect the final list of messages to return to the caller.
 
-    found_messages = []
-    for msg in query:
-        found_messages.append(msg)
+        query = Message.objects.filter(conversation=conversation)
+        if anchor not in[None, ""]:
+            query = query.filter(update_id__gt=anchor)
 
-    for msg in found_messages:
-        if ((msg.recipient_global_id == my_global_id) and
-            (msg.status == Message.STATUS_SENT)):
-            msg.status = Message.STATUS_READ
-            msg.save_with_new_update_id()
+        found_messages = []
+        for msg in query:
+            found_messages.append(msg)
 
-    # Now collect the list of messages for this conversation.  If the caller
-    # provided an anchor, we only collect the new and updated messages since the
-    # last time this endpoint was called.
+        for msg in found_messages:
+            if ((msg.recipient_global_id == my_global_id) and
+                (msg.status == Message.STATUS_SENT)):
+                msg.status = Message.STATUS_READ
+                msg.save_with_new_update_id()
 
-    query = Message.objects.filter(conversation=conversation)
-    if anchor not in[None, ""]:
-        query = query.filter(update_id__gt=anchor)
+        # Now collect the list of messages for this conversation.  If the
+        # caller provided an anchor, we only collect the new and updated
+        # messages since the last time this endpoint was called.
 
-    messages    = []
-    next_anchor = ""
+        query = Message.objects.filter(conversation=conversation)
+        if anchor not in[None, ""]:
+            query = query.filter(update_id__gt=anchor)
 
-    for msg in query.order_by("id"):
-        timestamp = utils.datetime_to_unix_timestamp(msg.timestamp)
-        status    = Message.STATUS_MAP[msg.status]
+        messages = []
+        for msg in query.order_by("id"):
+            timestamp = utils.datetime_to_unix_timestamp(msg.timestamp)
+            status    = Message.STATUS_MAP[msg.status]
 
-        messages.append({'hash'                 : msg.hash,
-                         'timestamp'            : timestamp,
-                         'sender_global_id'     : msg.sender_global_id,
-                         'recipient_global_id'  : msg.recipient_global_id,
-                         'sender_account_id'    : msg.sender_account_id,
-                         'recipient_account_id' : msg.recipient_account_id,
-                         'text'                 : msg.text,
-                         'status'               : status})
-        if msg.error:
-            messages[-1]['error'] = msg.error
+            messages.append({'hash'                 : msg.hash,
+                             'timestamp'            : timestamp,
+                             'sender_global_id'     : msg.sender_global_id,
+                             'recipient_global_id'  : msg.recipient_global_id,
+                             'sender_account_id'    : msg.sender_account_id,
+                             'recipient_account_id' : msg.recipient_account_id,
+                             'text'                 : msg.text,
+                             'status'               : status})
+            if msg.error:
+                messages[-1]['error'] = msg.error
 
-        if next_anchor == "" or next_anchor < msg.update_id:
-            next_anchor = msg.update_id
+        # Calculate the next anchor value to use.
+
+        max_value = Message.objects.all().aggregate(Max('update_id'))
+        if max_value['update_id__max'] == None:
+            next_anchor = ""
+        else:
+            next_anchor = str(max_value['update_id__max'])
 
     # Finally, return the results back to the caller.
 
     return HttpResponse(json.dumps({'messages'    : messages,
-                                    'next_anchor' : str(next_anchor)}),
+                                    'next_anchor' : next_anchor}),
                         mimetype="application/json")
 
