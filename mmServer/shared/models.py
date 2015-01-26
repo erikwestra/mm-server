@@ -92,6 +92,10 @@ class Message(models.Model):
     sender_account_id    = models.TextField()
     recipient_account_id = models.TextField()
     text                 = models.TextField()
+    action               = models.TextField(null=True)
+    action_params        = models.TextField(null=True)
+    action_processed     = models.BooleanField(default=False)
+    amount_in_drops      = models.IntegerField(default=1)
     status               = models.IntegerField(choices=STATUS_CHOICES,
                                                db_index=True)
     error                = models.TextField(null=True)

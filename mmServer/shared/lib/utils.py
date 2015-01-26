@@ -237,6 +237,9 @@ def exception_response():
         we get the details of the exception, and return a short plain-text
         error message explaining what went wrong, wrapped in an HttpResponse
         object.
+
+        If we are running the unit tests, we also print the exception to
+        stderr, so the exception will be visible.
     """
     exception_type,exception_value,exception_tb = sys.exc_info()
 
@@ -248,6 +251,12 @@ def exception_response():
         error.append(line.rstrip())
 
     error.append(exception_type.__name__ + ":" + str(exception_value))
+
+    if 'test' in sys.argv:
+        print
+        for line in error:
+            print line
+        print
 
     return HttpResponseServerError("\n".join(error))
 

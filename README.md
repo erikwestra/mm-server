@@ -141,8 +141,9 @@ of view, while still having a single global conversation record for both users.
 
 ## Messages ##
 
-A **message** is the unit of communication between users.  Within the API, a
-message consists of the following information:
+A **message** is the unit of communication between users.  Messages can be
+freeform text, or they can include **actions** that need to be performed.
+Within the API, a message consists of the following information:
 
 > `conversation`
 > 
@@ -175,9 +176,54 @@ message consists of the following information:
 > 
 > `text`
 > 
-> > The text of the message.  Note that this will be encrypted using the
-> > conversation's encryption key.
+> > The text of the message.
 > 
+> `action`
+> 
+> > The action associated with this message.  The following actions are
+> > currently supported:
+> > 
+> > > `SEND_XRP`
+> > > 
+> > > > Send some XRP to the other user.
+> > > 
+> > > `REQUEST_XRP`
+> > > 
+> > > > Request some XRP from the other user.
+> > 
+> > If the message does not have an action associated with it, the `action`
+> > field will be set to a `null` value.
+
+> `action_params`
+> 
+> > A dictionary mapping action parameter names to their associated values,
+> > converted to a JSON-format string.  The exact set of parameters depends on
+> > the action being performed, as described below.
+> > 
+> > * For the `SEND_XRP` action:
+> >  
+> > > > `amount`
+> > > > 
+> > > > > The amount to send, as an integer number of drops.
+> > 
+> > * For the `REQUEST_XRP` action:
+> > 
+> > > > `amount`
+> > > > 
+> > > > > The amount to request, as an integer number of drops.
+> > 
+> > If the message does not have any action parameters, the `action_params`
+> > field will be set to a `null` value.
+> 
+> `action_processed`
+> 
+> > Has this action been processed by the recipient?
+> 
+> `amount_in_drops`
+> 
+> > The amount to send to the recipient of this message, as an integer number
+> > of drops.  If this is not specified, the message will have an amount of 1
+> > drop.  Note that the minimum that can be sent is 1 drop.
 > 
 > `status`
 > 
@@ -623,6 +669,9 @@ containing the following JSON-format object:
 >           sender_account_id: "...",
 >           recipient_account_id: "...",
 >           text: "...",
+>           action: "...",
+>           action_params: "...",
+>           amount_in_drops: 100,
 >           status: "...",
 >           error: "..."},
 >          ...
@@ -635,7 +684,7 @@ as described in the Messages section, above.  The `error` field will only be
 present if the message failed to be sent.
 
 Note that a single message may be returned more than once; if the status of a
-message changes, it will be sent again.  The client should comare the message
+message changes, it will be sent again.  The client should compare the message
 hash to see if the message has already been received, and if so just update the
 existing message's status.  Note that only the `status` and `error` fields will
 ever be updated for a message.
@@ -660,11 +709,22 @@ object:
 >           recipient_global_id: "...",
 >           sender_account_id: "...",
 >           recipient_account_id: "...",
->           text: "..."}
+>           text: "...",
+>           action: "...",
+>           action_params: "...",
+>           amount_in_drops: 100}
 >     }
 
-> _**Note**: the sending user must have an existing profile for this API
-> endpoint to work._
+**_Note_**:
+ 
+> * The sending user must have an existing profile for this API endpoint to
+>   work.
+> <br/><br/>
+> * The `action` and `action_params` fields are only required if the message
+>   has an action associated with it.
+> <br/></br>
+> * The `amount_in_drops` field is only needed if you wish to send funds
+>   along with the message.
 
 If the message was accepted, the API endpoint will return an HTTP response code
 of 202 (Accepted).  If the message was rejected right away, the API endpoint
@@ -680,4 +740,25 @@ message updates.
 If the HMAC authentication details are missing or invalid, the API endpoint
 will return an HTTP response code of 403 (Forbidden).  If some required fields
 are missing, the API will return a response code of 400 (Bad Request).
+
+**`PUT api/message`**
+
+Update a message.  This API endpoint must use HMAC authentication.  The body of
+the request should be a string containing the following JSON-format object:
+
+>     {message: {
+>          hash: "...",
+>          processed: true}
+>     }
+
+Note that the only action that is currently supported is marking the message
+as having been processed by the recipient.  Only the recipient of the message
+can mark it as being processed.
+
+If the update was accepted, the API endpoint will return an HTTP response code
+of 200 (OK).  If there is no message with the given hash value, the API
+endpoint will return an HTTP response code of 404 (Not Found).  If the HMAC
+authentication details are missing or invalid, the API endpoint will return an
+HTTP response code of 403 (Forbidden).  If some required fields are missing,
+the API will return a response code of 400 (Bad Request).
 

@@ -33,8 +33,10 @@ def endpoint(request):
     try:
         if request.method == "POST":
             return message_POST(request)
+        elif request.method == "PUT":
+            return message_PUT(request)
         else:
-            return HttpResponseNotAllowed(["POST"])
+            return HttpResponseNotAllowed(["POST", 'PUT'])
     except:
         return utils.exception_response()
 
@@ -77,6 +79,21 @@ def message_POST(request):
         return HttpResponseBadRequest("Missing 'text' field.")
     else:
         text = data['text']
+
+    if "action" in data:
+        action = data['action']
+    else:
+        action = None
+
+    if "action_params" in data:
+        action_params = data['action_params']
+    else:
+        action_params = None
+
+    if "amount_in_drops" in data:
+        amount_in_drops = data['amount_in_drops']
+    else:
+        amount_in_drops = 1 # Hardwired default.
 
     try:
         senders_profile = Profile.objects.get(global_id=sender_global_id)
@@ -132,7 +149,7 @@ def message_POST(request):
     transaction = {'TransactionType' : "Payment",
                    'Account'         : sender_account_id,
                    'Destination'     : recipient_account_id,
-                   'Amount'          : "1", # Hardwired for now.
+                   'Amount'          : str(amount_in_drops),
                    'Memos'           : memos
                   }
 
@@ -182,9 +199,68 @@ def message_POST(request):
     message.sender_account_id    = sender_account_id
     message.recipient_account_id = recipient_account_id
     message.text                 = text
+    message.action               = action
+    message.action_params        = action_params
     message.status               = Message.STATUS_PENDING
+    message.amount_in_drops      = amount_in_drops
     message.error                = None
     message.save_with_new_update_id()
 
     return HttpResponse(status=202)
+
+#############################################################################
+
+def message_PUT(request):
+    """ Respond to the "PUT /api/message" API request.
+
+        This is used to update a message.
+    """
+    # Process our parameters.
+
+    if not utils.has_hmac_headers(request):
+        return HttpResponseForbidden()
+
+    if request.META['CONTENT_TYPE'] != "application/json":
+        return HttpResponseBadRequest("Request must be in JSON format.")
+
+    data = json.loads(request.body)
+
+    if "message" not in data:
+        return HttpResponseBadRequest("Missing 'message' field.")
+
+    if "hash" not in data['message']:
+        return HttpResponseBadRequest("Missing 'hash' field.")
+    else:
+        hash = data['message']['hash']
+
+    if "processed" in data['message']:
+        processed = (data['message']['processed'] == True)
+    else:
+        return HttpResponseBadRequest("Missing 'processed' field.")
+
+    # Find the message to update.
+
+    try:
+        message = Message.objects.get(hash=hash)
+    except Message.DoesNotExist:
+        return HttpResponseNotFound()
+
+    # Check that the recipient is trying to update the message.
+
+    try:
+        recipients_profile = Profile.objects.get(
+                                        global_id=message.recipient_global_id)
+    except Profile.DoesNotExist:
+        return HttpResponseBadRequest("The recipient doesn't have a profile!")
+
+    if not utils.check_hmac_authentication(request,
+                                           recipients_profile.account_secret):
+        return HttpResponseForbidden()
+
+    # We're good to go.  Update the message.
+
+    message.action_processed = processed
+    message.save_with_new_update_id()
+
+    return HttpResponse(status=200)
 

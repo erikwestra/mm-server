@@ -163,6 +163,10 @@ def messages_GET(request):
                              'sender_account_id'    : msg.sender_account_id,
                              'recipient_account_id' : msg.recipient_account_id,
                              'text'                 : msg.text,
+                             'action'               : msg.action,
+                             'action_params'        : msg.action_params,
+                             'action_processed'     : msg.action_processed,
+                             'amount_in_drops'      : msg.amount_in_drops,
                              'status'               : status})
             if msg.error:
                 messages[-1]['error'] = msg.error
