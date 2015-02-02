@@ -631,28 +631,47 @@ More actions may be added in the future as they are needed.
 **`GET api/messages`**
 
 Obtain a list of messages.  This API endpoint must use HMAC authentication.
-The following query-string parameters are required:
+The following query-string parameter is required:
 
 > `my_global_id`
 > 
 > > The current user's global ID.
-> 
+
+In addition, the following optional query-string parameters can also be
+supplied:
+
 > `their_global_id`
 > 
 > > The other user's global ID.
-
-In addition, the caller may supply the following optional parameter:
-
+> 
 > `anchor`
 > 
 > > A string used to only return messages which have been sent, or failed to
 > > send, since the last time a call was made to the `GET api/messages`
 > > endpoint.
+> 
+> `get_latest_anchor`
+> 
+> > This can be used to retrieve the latest anchor value without actually
+> > returning any messages.
 
-If the `anchor` parameter is supplied, the API will return only those messages
-which have had a change in status, since the given anchor value was calculated.
-Without the `anchor` parameter, the API will return a list of all messages sent
-between these two users.
+The exact combination of parameters depends on what the caller is attempting to
+do:
+
+ * To retrieve a complete list of all messages sent by or received by a given
+   user, the caller only supplies the `my_global_id` parameter.
+<br/><br/>
+ * To retrieve a complete list of all messages sent between two users, the
+   caller should supply the `my_global_id` and `their_global_id` parameters.
+<br/><br/>
+ * To retrieve the latest anchor value to use for message polling, the caller
+   should supply only the `my_global_id` and `get_latest_anchor` parameters.
+   The value of the `get_latest_anchor` parameter should be "yes" or "1".
+<br/><br/>
+ * To retrieve only the messages which have been added or updated since the
+   last time this API endpoint was called, the caller should supply the
+   `anchor` parameter, in addition to the `my_global_id` and (if relevant) the
+   `their_global_id` parameters.
 
 > _**Note**: the current user must have an existing profile for this API
 > endpoint to work._
@@ -682,6 +701,9 @@ containing the following JSON-format object:
 Each entry in the `messages` list is an object with the details of the message,
 as described in the Messages section, above.  The `error` field will only be
 present if the message failed to be sent.
+
+If the `get_latest_anchor` parameter was passed to the endpoint, only the
+`next_anchor` value will be returned.
 
 Note that a single message may be returned more than once; if the status of a
 message changes, it will be sent again.  The client should compare the message

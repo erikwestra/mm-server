@@ -11,7 +11,7 @@ import uuid
 from django.http                  import *
 from django.views.decorators.csrf import csrf_exempt
 from django.utils                 import timezone
-from django.db.models             import Max
+from django.db.models             import Max, Q
 
 import simplejson as json
 
@@ -58,12 +58,18 @@ def messages_GET(request):
     if "their_global_id" in request.GET:
         their_global_id = request.GET['their_global_id']
     else:
-        return HttpResponseBadRequest("Missing 'their_global_id' parameter.")
+        their_global_id = None
 
     if "anchor" in request.GET:
         anchor = request.GET['anchor']
     else:
         anchor = None
+
+    if "get_latest_anchor" in request.GET:
+        get_latest_anchor = request.GET['get_latest_anchor'] not in ["", "0",
+                                                                     "no"]
+    else:
+        get_latest_anchor = False
 
     try:
         my_profile = Profile.objects.get(global_id=my_global_id)
@@ -74,28 +80,33 @@ def messages_GET(request):
                                            my_profile.account_secret):
         return HttpResponseForbidden()
 
-    # Get the Conversation for these two users.  If there is no Conversation
-    # record for these two users, return a empty response as there won't be any
-    # messages.
+    # If we've been asked to return only the latest anchor value, do so.
 
-    try:
-        conversation = Conversation.objects.get(global_id_1=my_global_id,
-                                                global_id_2=their_global_id)
-    except Conversation.DoesNotExist:
-        try:
-            conversation = Conversation.objects.get(global_id_1=their_global_id,
-                                                    global_id_2=my_global_id)
-        except Conversation.DoesNotExist:
-            conversation = None
+    if get_latest_anchor:
+        with dbHelpers.exclusive_access(Message):
+            max_value = Message.objects.all().aggregate(Max('update_id'))
+            if max_value['update_id__max'] == None:
+                next_anchor = ""
+            else:
+                next_anchor = str(max_value['update_id__max'])
 
-    if conversation == None:
-        return HttpResponse(json.dumps({'messages'    : [],
-                                        'next_anchor' : ""}),
+        return HttpResponse(json.dumps({'next_anchor' : next_anchor}),
                             mimetype="application/json")
 
-    # See if we have any pending messages for this conversation.  If so, ask
-    # the Ripple network for the current status of these messages, and finalize
-    # any that have either failed or been accepted into the Ripple ledger.
+    # Construct a database query to retrieve the desired set of messages.
+
+    if their_global_id != None:
+        query = ((Q(sender_global_id=my_global_id) &
+                  Q(recipient_global_id=their_global_id)) |
+                 (Q(sender_global_id=their_global_id) &
+                  Q(recipient_global_id=my_global_id)))
+    else:
+        query = (Q(sender_global_id=my_global_id) |
+                 Q(recipient_global_id=my_global_id))
+
+    # See if we have any pending messages.  If so, ask the Ripple network for
+    # the current status of these messages, and finalize any that have either
+    # failed or been accepted into the Ripple ledger.
 
     msgs_to_check = []
     for msg in Message.objects.filter(status=Message.STATUS_PENDING):
@@ -124,35 +135,36 @@ def messages_GET(request):
     # This prevents other clients from changing the data until we're finished.
 
     with dbHelpers.exclusive_access(Message):
+
         # Go through the list of messages we want to download, and mark any
         # messages sent to the current user as "read".  Note that this will
         # alter the update_id for these messages, so we have to do this before
         # we collect the final list of messages to return to the caller.
 
-        query = Message.objects.filter(conversation=conversation)
+        found_messages = Message.objects.filter(query)
         if anchor not in[None, ""]:
-            query = query.filter(update_id__gt=anchor)
+            found_messages = found_messages.filter(update_id__gt=anchor)
 
-        found_messages = []
-        for msg in query:
-            found_messages.append(msg)
-
+        messages_to_update = []
         for msg in found_messages:
+            messages_to_update.append(msg)
+
+        for msg in messages_to_update:
             if ((msg.recipient_global_id == my_global_id) and
                 (msg.status == Message.STATUS_SENT)):
                 msg.status = Message.STATUS_READ
                 msg.save_with_new_update_id()
 
-        # Now collect the list of messages for this conversation.  If the
-        # caller provided an anchor, we only collect the new and updated
-        # messages since the last time this endpoint was called.
+        # Now collect the list of messages to return.  If the caller provided
+        # an anchor, we only collect the new and updated messages since the
+        # last time this endpoint was called.
 
-        query = Message.objects.filter(conversation=conversation)
+        found_messages = Message.objects.filter(query)
         if anchor not in[None, ""]:
-            query = query.filter(update_id__gt=anchor)
+            found_messages = found_messages.filter(update_id__gt=anchor)
 
         messages = []
-        for msg in query.order_by("id"):
+        for msg in found_messages.order_by("id"):
             timestamp = utils.datetime_to_unix_timestamp(msg.timestamp)
             status    = Message.STATUS_MAP[msg.status]
 
