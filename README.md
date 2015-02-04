@@ -784,12 +784,24 @@ the request should be a string containing the following JSON-format object:
 
 >     {message: {
 >          hash: "...",
->          processed: true}
+>          ...
+>         }
 >     }
 
-Note that the only action that is currently supported is marking the message
-as having been processed by the recipient.  Only the recipient of the message
-can mark it as being processed.
+In addition to the message hash, the following fields can be used to update the
+message:
+
+> `processed`
+> 
+> > Set this to true to tell the server that the message action has been
+> > processed by the message recipient.
+> 
+> `read`
+> 
+> > Set this to true to tell the server that the given message has been read by
+> > the recipient.
+
+Note that only the recipient can update a message.
 
 If the update was accepted, the API endpoint will return an HTTP response code
 of 200 (OK).  If there is no message with the given hash value, the API

@@ -236,7 +236,12 @@ def message_PUT(request):
     if "processed" in data['message']:
         processed = (data['message']['processed'] == True)
     else:
-        return HttpResponseBadRequest("Missing 'processed' field.")
+        processed = False
+
+    if "read" in data['message']:
+        read = (data['message']['read'] == True)
+    else:
+        read = False
 
     # Find the message to update.
 
@@ -245,7 +250,7 @@ def message_PUT(request):
     except Message.DoesNotExist:
         return HttpResponseNotFound()
 
-    # Check that the recipient is trying to update the message.
+    # Check that the recipient is the one trying to update the message.
 
     try:
         recipients_profile = Profile.objects.get(
@@ -259,7 +264,8 @@ def message_PUT(request):
 
     # We're good to go.  Update the message.
 
-    message.action_processed = processed
+    if processed: message.action_processed = True
+    if read:      message.status           = Message.STATUS_READ
     message.save()
 
     return HttpResponse(status=200)

@@ -389,7 +389,8 @@ class MessageTestCase(django.test.TestCase):
         # Prepare the body of our request.
 
         request = json.dumps({'message' : {'hash'      : message.hash,
-                                           'processed' : True}})
+                                           'processed' : True,
+                                           'read'      : True}})
 
         # Calculate the HMAC authentication headers we need to make an
         # authenticated request.
@@ -413,6 +414,7 @@ class MessageTestCase(django.test.TestCase):
 
         msg = Message.objects.get(conversation=conversation)
         self.assertEqual(msg.action_processed, True)
+        self.assertEqual(msg.status,           Message.STATUS_READ)
 
     # -----------------------------------------------------------------------
 
