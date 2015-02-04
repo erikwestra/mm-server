@@ -18,21 +18,21 @@ class exclusive_access():
     """ A context manager that provides exclusive access to a database table.
 
         This context manager, which only works with PostgreSQL, applies an
-        "ACCESS EXCLUSIVE" lock to a given Django model and starts an atomic
-        transaction on entry, and then releases the transaction on exit.  This
-        has the effect of applying an exlusive lock on the given model's
-        database table, so that nobody else can access that table (even for
+        "ACCESS EXCLUSIVE" lock to one or more Django models and starts an
+        atomic transaction on entry, and then releases the transaction on exit.
+        This has the effect of applying an exlusive lock on the given database
+        table(s), so that nobody else can access those tables (even for
         reading) while the given code is being executed.  Note that either
         committing or rolling back the transaction (which happens when leaving
         the context) will automatically release the exclusive lock.
     """
-    def __init__(self, model):
+    def __init__(self, *models):
         """ Standard initialiser.
 
-            'model' is the Django model that we want an exclusive table lock
-            for.
+            'models' is a list of the Django model(s) that we want an exclusive
+            table lock for.
         """
-        self._model       = model
+        self._models      = models
         self._transaction = transaction.atomic()
 
 
@@ -43,8 +43,9 @@ class exclusive_access():
 
         if "postgresql" in settings.DATABASES['default']['ENGINE']:
             cursor = connection.cursor()
-            cursor.execute("LOCK TABLE %s IN ACCESS EXCLUSIVE MODE" %
-                           self._model._meta.db_table)
+            for model in self._models:
+                cursor.execute("LOCK TABLE %s IN ACCESS EXCLUSIVE MODE" %
+                               model._meta.db_table)
 
 
     def __exit__(self, exc_type, exc_value, exc_traceback):

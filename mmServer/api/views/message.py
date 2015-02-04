@@ -204,7 +204,7 @@ def message_POST(request):
     message.status               = Message.STATUS_PENDING
     message.amount_in_drops      = amount_in_drops
     message.error                = None
-    message.save_with_new_update_id()
+    message.save()
 
     return HttpResponse(status=202)
 
@@ -260,7 +260,7 @@ def message_PUT(request):
     # We're good to go.  Update the message.
 
     message.action_processed = processed
-    message.save_with_new_update_id()
+    message.save()
 
     return HttpResponse(status=200)
 

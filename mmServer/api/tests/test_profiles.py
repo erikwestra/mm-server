@@ -446,5 +446,6 @@ class ProfileTestCase(django.test.TestCase):
         except Profile.DoesNotExist:
             profile = None
 
-        self.assertIsNone(profile)
+        self.assertIsNotNone(profile) # Should simply mark profile as deleted.
+        self.assertTrue(profile.deleted)
 

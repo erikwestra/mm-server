@@ -384,7 +384,7 @@ class MessageTestCase(django.test.TestCase):
         message.action_processed     = False
         message.amount_in_drops      = 1000000
         message.error                = None
-        message.save_with_new_update_id()
+        message.save()
 
         # Prepare the body of our request.
 
@@ -538,7 +538,7 @@ class MessageTestCase(django.test.TestCase):
             message.action_params        = json.dumps({})
             message.amount_in_drops      = 1
             message.error                = None
-            message.save_with_new_update_id()
+            message.save()
 
         # Calculate the HMAC authentication headers we need to make an
         # authenticated request.
@@ -567,7 +567,7 @@ class MessageTestCase(django.test.TestCase):
 
         # Check that the list of messages was correctly returned.
 
-        self.assertItemsEqual(data.keys(), ["messages", "next_anchor"])
+        self.assertItemsEqual(data.keys(), ["messages"])
         self.assertEqual(len(data['messages']), 4)
         self.assertEqual(data['messages'][0]['text'], messages[0]['text'])
         self.assertEqual(data['messages'][1]['text'], messages[1]['text'])
@@ -646,7 +646,7 @@ class MessageTestCase(django.test.TestCase):
             message.action_params        = json.dumps({'amount' : 10})
             message.amount_in_drops      = 10
             message.error                = None
-            message.save_with_new_update_id()
+            message.save()
 
         # Calculate the HMAC authentication headers we need to make an
         # authenticated request.
@@ -676,7 +676,7 @@ class MessageTestCase(django.test.TestCase):
 
         # Check that the list of messages was correctly returned.
 
-        self.assertItemsEqual(data.keys(), ["messages", "next_anchor"])
+        self.assertItemsEqual(data.keys(), ["messages"])
         self.assertEqual(len(data['messages']), 3)
         self.assertEqual(data['messages'][0]['text'], message_1)
         self.assertEqual(data['messages'][1]['text'], message_2)
@@ -752,7 +752,7 @@ class MessageTestCase(django.test.TestCase):
         message.text                 = utils.random_string()
         message.status               = Message.STATUS_PENDING
         message.error                = None
-        message.save_with_new_update_id()
+        message.save()
 
         # Calculate the HMAC authentication headers we need to make an
         # authenticated request.
@@ -829,336 +829,4 @@ class MessageTestCase(django.test.TestCase):
 
         self.assertEqual(msg.status, Message.STATUS_SENT)
         self.assertEqual(msg.error,  None)
-
-    # -----------------------------------------------------------------------
-
-    def test_poll_for_new_messages(self):
-        """ Check that we can poll for new messages using the "anchor" param.
-
-            We create a series of messages, and call the "GET api/messages"
-            endpoint to get the returned 'next_anchor' value.  We then add some
-            more messages, and update some existing messages, and then call the
-            endpoint again with the supplied anchor to ensure that only the new
-            and updated messages are returned.
-        """
-        # Create a profile for the sender.
-
-        sender_profile = Profile()
-        sender_profile.global_id        = utils.calc_unique_global_id()
-        sender_profile.account_secret   = utils.random_string()
-        sender_profile.name             = utils.random_string()
-        sender_profile.name_visible     = True
-        sender_profile.location         = utils.random_string()
-        sender_profile.location_visible = False
-        sender_profile.picture_id       = utils.random_string()
-        sender_profile.picture_visible  = True
-        sender_profile.save()
-
-        # Create a profile for the recipient.
-
-        recipient_profile = Profile()
-        recipient_profile.global_id        = utils.calc_unique_global_id()
-        recipient_profile.account_secret   = utils.random_string()
-        recipient_profile.name             = utils.random_string()
-        recipient_profile.name_visible     = True
-        recipient_profile.location         = utils.random_string()
-        recipient_profile.location_visible = False
-        recipient_profile.picture_id       = utils.random_string()
-        recipient_profile.picture_visible  = True
-        recipient_profile.save()
-
-        # Create a conversation between these two users.
-
-        conversation = Conversation()
-        conversation.global_id_1    = sender_profile.global_id
-        conversation.global_id_2    = recipient_profile.global_id
-        conversation.hidden_1       = False
-        conversation.hidden_2       = False
-        conversation.encryption_key = encryption.generate_random_key()
-        conversation.last_message   = utils.random_string()
-        conversation.last_timestamp = timezone.now()
-        conversation.num_unread_1   = 0
-        conversation.num_unread_2   = 0
-
-        conversation.save()
-
-        # Create random Ripple account IDs for our two users.
-
-        sender_account_id    = utils.random_string()
-        recipient_account_id = utils.random_string()
-
-        # Create some test messages.
-
-        message_1 = utils.random_string()
-        message_2 = utils.random_string()
-        message_3 = utils.random_string()
-
-        for message_text in [message_1, message_2, message_3]:
-            message = Message()
-            message.conversation         = conversation
-            message.hash                 = utils.random_string()
-            message.timestamp            = timezone.now()
-            message.sender_global_id     = sender_profile.global_id
-            message.recipient_global_id  = recipient_profile.global_id
-            message.sender_account_id    = sender_account_id
-            message.recipient_account_id = recipient_account_id
-            message.text                 = message_text
-            message.status               = Message.STATUS_SENT
-            message.error                = None
-            message.save_with_new_update_id()
-
-        # Calculate the HMAC authentication headers we need to make an
-        # authenticated request.
-
-        headers = utils.calc_hmac_headers(
-            method="GET",
-            url="/api/messages",
-            body="",
-            account_secret=sender_profile.account_secret
-        )
-
-        # Ask the "GET api/messages" endpoint to return the list of messages
-        # between these two users.
-
-        url = "/api/messages?my_global_id=" + sender_profile.global_id \
-            + "&their_global_id=" + recipient_profile.global_id
-        response = self.client.get(url,
-                                   "",
-                                   content_type="application/json",
-                                   **headers)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response['Content-Type'], "application/json")
-        data = json.loads(response.content)
-
-        # Get the 'next_anchor' value to use for our next request.
-
-        next_anchor = data['next_anchor']
-
-        # Update one of the existing messages.
-
-        msg = Message.objects.order_by("id")[0]
-
-        msg.status = Message.STATUS_FAILED
-        msg.error  = "Failed"
-        msg.save_with_new_update_id()
-
-        # Now create two more messages.
-
-        message_4 = utils.random_string()
-        message_5 = utils.random_string()
-
-        for message_text in [message_4, message_5]:
-            message = Message()
-            message.conversation         = conversation
-            message.hash                 = utils.random_string()
-            message.timestamp            = timezone.now()
-            message.sender_global_id     = sender_profile.global_id
-            message.recipient_global_id  = recipient_profile.global_id
-            message.sender_account_id    = sender_account_id
-            message.recipient_account_id = recipient_account_id
-            message.text                 = message_text
-            message.status               = Message.STATUS_SENT
-            message.error                = None
-            message.save_with_new_update_id()
-
-        # Calculate the HMAC authentication headers we need to make an
-        # authenticated request.
-
-        headers = utils.calc_hmac_headers(
-            method="GET",
-            url="/api/messages",
-            body="",
-            account_secret=sender_profile.account_secret
-        )
-
-        # Ask the "GET api/messages" endpoint to return any new and updated
-        # messages which have come in since the 'last_anchor' value was
-        # calculated.
-
-        url = "/api/messages?my_global_id=" + sender_profile.global_id \
-            + "&their_global_id=" + recipient_profile.global_id \
-            + "&anchor=" + next_anchor
-
-        response = self.client.get(url,
-                                   "",
-                                   content_type="application/json",
-                                   **headers)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response['Content-Type'], "application/json")
-        data = json.loads(response.content)
-
-        # Check that the new and updated messages were returned, as expected.
-
-        self.assertItemsEqual(data.keys(), ["messages", "next_anchor"])
-        self.assertEqual(len(data['messages']), 3)
-
-        self.assertEqual(data['messages'][0]['text'], message_1)
-        self.assertEqual(data['messages'][1]['text'], message_4)
-        self.assertEqual(data['messages'][2]['text'], message_5)
-
-    # -----------------------------------------------------------------------
-
-    def test_get_latest_anchor(self):
-        """ Check that we can use the API to retrieve the latest anchor value.
-
-            We create a series of messages, and call the "GET api/messages"
-            endpoint to get just the latest anchor value.  We then check that
-            this returned anchor value is correct.
-        """
-        # Create a profile for the sender.
-
-        sender_profile = Profile()
-        sender_profile.global_id        = utils.calc_unique_global_id()
-        sender_profile.account_secret   = utils.random_string()
-        sender_profile.name             = utils.random_string()
-        sender_profile.name_visible     = True
-        sender_profile.location         = utils.random_string()
-        sender_profile.location_visible = False
-        sender_profile.picture_id       = utils.random_string()
-        sender_profile.picture_visible  = True
-        sender_profile.save()
-
-        # Create a profile for the recipient.
-
-        recipient_profile = Profile()
-        recipient_profile.global_id        = utils.calc_unique_global_id()
-        recipient_profile.account_secret   = utils.random_string()
-        recipient_profile.name             = utils.random_string()
-        recipient_profile.name_visible     = True
-        recipient_profile.location         = utils.random_string()
-        recipient_profile.location_visible = False
-        recipient_profile.picture_id       = utils.random_string()
-        recipient_profile.picture_visible  = True
-        recipient_profile.save()
-
-        # Create a conversation between these two users.
-
-        conversation = Conversation()
-        conversation.global_id_1    = sender_profile.global_id
-        conversation.global_id_2    = recipient_profile.global_id
-        conversation.hidden_1       = False
-        conversation.hidden_2       = False
-        conversation.encryption_key = encryption.generate_random_key()
-        conversation.last_message   = utils.random_string()
-        conversation.last_timestamp = timezone.now()
-        conversation.num_unread_1   = 0
-        conversation.num_unread_2   = 0
-
-        conversation.save()
-
-        # Create random Ripple account IDs for our two users.
-
-        sender_account_id    = utils.random_string()
-        recipient_account_id = utils.random_string()
-
-        # Create some test messages.
-
-        message_1 = utils.random_string()
-        message_2 = utils.random_string()
-        message_3 = utils.random_string()
-
-        for message_text in [message_1, message_2, message_3]:
-            message = Message()
-            message.conversation         = conversation
-            message.hash                 = utils.random_string()
-            message.timestamp            = timezone.now()
-            message.sender_global_id     = sender_profile.global_id
-            message.recipient_global_id  = recipient_profile.global_id
-            message.sender_account_id    = sender_account_id
-            message.recipient_account_id = recipient_account_id
-            message.text                 = message_text
-            message.status               = Message.STATUS_SENT
-            message.error                = None
-            message.save_with_new_update_id()
-
-        # Calculate the HMAC authentication headers we need to make an
-        # authenticated request.
-
-        headers = utils.calc_hmac_headers(
-            method="GET",
-            url="/api/messages",
-            body="",
-            account_secret=sender_profile.account_secret
-        )
-
-        # Ask the "GET api/messages" endpoint to return the list of messages
-        # between these two users.
-
-        url = "/api/messages?my_global_id=" + sender_profile.global_id \
-            + "&get_latest_anchor=1"
-        response = self.client.get(url,
-                                   "",
-                                   content_type="application/json",
-                                   **headers)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response['Content-Type'], "application/json")
-        data = json.loads(response.content)
-
-        self.assertTrue("next_anchor" in data)
-
-        # Get the 'next_anchor' value to use for our next request.
-
-        next_anchor = data['next_anchor']
-
-        # Update one of the existing messages.
-
-        msg = Message.objects.order_by("id")[0]
-
-        msg.status = Message.STATUS_FAILED
-        msg.error  = "Failed"
-        msg.save_with_new_update_id()
-
-        # Now create two more messages.
-
-        message_4 = utils.random_string()
-        message_5 = utils.random_string()
-
-        for message_text in [message_4, message_5]:
-            message = Message()
-            message.conversation         = conversation
-            message.hash                 = utils.random_string()
-            message.timestamp            = timezone.now()
-            message.sender_global_id     = sender_profile.global_id
-            message.recipient_global_id  = recipient_profile.global_id
-            message.sender_account_id    = sender_account_id
-            message.recipient_account_id = recipient_account_id
-            message.text                 = message_text
-            message.status               = Message.STATUS_SENT
-            message.error                = None
-            message.save_with_new_update_id()
-
-        # Calculate the HMAC authentication headers we need to make an
-        # authenticated request.
-
-        headers = utils.calc_hmac_headers(
-            method="GET",
-            url="/api/messages",
-            body="",
-            account_secret=sender_profile.account_secret
-        )
-
-        # Ask the "GET api/messages" endpoint to return any new and updated
-        # messages which have come in since the 'last_anchor' value was
-        # calculated.
-
-        url = "/api/messages?my_global_id=" + sender_profile.global_id \
-            + "&their_global_id=" + recipient_profile.global_id \
-            + "&anchor=" + next_anchor
-
-        response = self.client.get(url,
-                                   "",
-                                   content_type="application/json",
-                                   **headers)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response['Content-Type'], "application/json")
-        data = json.loads(response.content)
-
-        # Check that the new and updated messages were returned, as expected.
-
-        self.assertItemsEqual(data.keys(), ["messages", "next_anchor"])
-        self.assertEqual(len(data['messages']), 3)
-
-        self.assertEqual(data['messages'][0]['text'], message_1)
-        self.assertEqual(data['messages'][1]['text'], message_4)
-        self.assertEqual(data['messages'][2]['text'], message_5)
 

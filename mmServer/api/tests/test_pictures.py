@@ -25,6 +25,7 @@ class PictureTestCase(django.test.TestCase):
 
         picture = Picture()
         picture.picture_id       = utils.calc_unique_picture_id()
+        picture.deleted          = False
         picture.account_secret   = utils.random_string()
         picture.picture_filename = utils.random_string() + ".png"
         picture.picture_data     = base64.b64encode(utils.random_string())
@@ -149,7 +150,7 @@ class PictureTestCase(django.test.TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-        # Check that the picture has been created.
+        # Check that the picture has been updated.
 
         updated_picture = Picture.objects.get(picture_id=picture.picture_id)
 
@@ -191,12 +192,13 @@ class PictureTestCase(django.test.TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-        # Check that the picture has been created.
+        # Check that the picture has been marked as deleted.
 
         try:
             picture = Picture.objects.get(picture_id=picture_id)
         except Picture.DoesNotExist:
             picture = None
 
-        self.assertIsNone(picture)
+        self.assertIsNotNone(picture)    # Picture should still exist...
+        self.assertTrue(picture.deleted) # ...but be marked as deleted.
 

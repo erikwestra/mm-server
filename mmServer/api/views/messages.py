@@ -60,17 +60,6 @@ def messages_GET(request):
     else:
         their_global_id = None
 
-    if "anchor" in request.GET:
-        anchor = request.GET['anchor']
-    else:
-        anchor = None
-
-    if "get_latest_anchor" in request.GET:
-        get_latest_anchor = request.GET['get_latest_anchor'] not in ["", "0",
-                                                                     "no"]
-    else:
-        get_latest_anchor = False
-
     try:
         my_profile = Profile.objects.get(global_id=my_global_id)
     except Profile.DoesNotExist:
@@ -80,35 +69,10 @@ def messages_GET(request):
                                            my_profile.account_secret):
         return HttpResponseForbidden()
 
-    # If we've been asked to return only the latest anchor value, do so.
-
-    if get_latest_anchor:
-        with dbHelpers.exclusive_access(Message):
-            max_value = Message.objects.all().aggregate(Max('update_id'))
-            if max_value['update_id__max'] == None:
-                next_anchor = ""
-            else:
-                next_anchor = str(max_value['update_id__max'])
-
-        return HttpResponse(json.dumps({'next_anchor' : next_anchor}),
-                            mimetype="application/json")
-
-    # Construct a database query to retrieve the desired set of messages.
-
-    if their_global_id != None:
-        query = ((Q(sender_global_id=my_global_id) &
-                  Q(recipient_global_id=their_global_id)) |
-                 (Q(sender_global_id=their_global_id) &
-                  Q(recipient_global_id=my_global_id)))
-    else:
-        query = (Q(sender_global_id=my_global_id) |
-                 Q(recipient_global_id=my_global_id))
-
     # See if we have any pending messages.  If so, ask the Ripple network for
     # the current status of these messages, and finalize any that have either
     # failed or been accepted into the Ripple ledger.
 
-    msgs_to_check = []
     for msg in Message.objects.filter(status=Message.STATUS_PENDING):
         response = rippleInterface.request("tx", transaction=msg.hash,
                                                  binary=False)
@@ -129,7 +93,18 @@ def messages_GET(request):
             else:
                 msg.status  = Message.STATUS_FAILED
                 final.error = trans_result
-            msg.save_with_new_update_id()
+            msg.save()
+
+    # Construct a database query to retrieve the desired set of messages.
+
+    if their_global_id != None:
+        query = ((Q(sender_global_id=my_global_id) &
+                  Q(recipient_global_id=their_global_id)) |
+                 (Q(sender_global_id=their_global_id) &
+                  Q(recipient_global_id=my_global_id)))
+    else:
+        query = (Q(sender_global_id=my_global_id) |
+                 Q(recipient_global_id=my_global_id))
 
     # Perform the actual grabbing of the data with an exclusive table lock.
     # This prevents other clients from changing the data until we're finished.
@@ -141,30 +116,20 @@ def messages_GET(request):
         # alter the update_id for these messages, so we have to do this before
         # we collect the final list of messages to return to the caller.
 
-        found_messages = Message.objects.filter(query)
-        if anchor not in[None, ""]:
-            found_messages = found_messages.filter(update_id__gt=anchor)
-
         messages_to_update = []
-        for msg in found_messages:
+        for msg in Message.objects.filter(query):
             messages_to_update.append(msg)
 
         for msg in messages_to_update:
             if ((msg.recipient_global_id == my_global_id) and
                 (msg.status == Message.STATUS_SENT)):
                 msg.status = Message.STATUS_READ
-                msg.save_with_new_update_id()
+                msg.save()
 
-        # Now collect the list of messages to return.  If the caller provided
-        # an anchor, we only collect the new and updated messages since the
-        # last time this endpoint was called.
-
-        found_messages = Message.objects.filter(query)
-        if anchor not in[None, ""]:
-            found_messages = found_messages.filter(update_id__gt=anchor)
+        # Collect the list of messages to return.
 
         messages = []
-        for msg in found_messages.order_by("id"):
+        for msg in Message.objects.filter(query).order_by("id"):
             timestamp = utils.datetime_to_unix_timestamp(msg.timestamp)
             status    = Message.STATUS_MAP[msg.status]
 
@@ -183,17 +148,8 @@ def messages_GET(request):
             if msg.error:
                 messages[-1]['error'] = msg.error
 
-        # Calculate the next anchor value to use.
-
-        max_value = Message.objects.all().aggregate(Max('update_id'))
-        if max_value['update_id__max'] == None:
-            next_anchor = ""
-        else:
-            next_anchor = str(max_value['update_id__max'])
-
     # Finally, return the results back to the caller.
 
-    return HttpResponse(json.dumps({'messages'    : messages,
-                                    'next_anchor' : next_anchor}),
+    return HttpResponse(json.dumps({'messages'    : messages}),
                         mimetype="application/json")
 

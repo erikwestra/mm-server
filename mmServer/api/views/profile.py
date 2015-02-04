@@ -63,13 +63,17 @@ def profile_GET(request, global_id):
         # If we get here, the caller is authenticated -> return the full
         # profile details.
 
-        response = {'global_id'        : profile.global_id,
-                    'name'             : profile.name,
-                    'name_visible'     : profile.name_visible,
-                    'location'         : profile.location,
-                    'location_visible' : profile.location_visible,
-                    'picture_id'       : profile.picture_id,
-                    'picture_visible'  : profile.picture_visible}
+        if profile.deleted:
+            response = {'global_id' : profile.global_id,
+                        'deleted'   : True}
+        else:
+            response = {'global_id'        : profile.global_id,
+                        'name'             : profile.name,
+                        'name_visible'     : profile.name_visible,
+                        'location'         : profile.location,
+                        'location_visible' : profile.location_visible,
+                        'picture_id'       : profile.picture_id,
+                        'picture_visible'  : profile.picture_visible}
 
         return HttpResponse(json.dumps(response),
                             mimetype="application/json")
@@ -83,12 +87,15 @@ def profile_GET(request, global_id):
             return HttpResponseNotFound()
 
         response = {'global_id' : profile.global_id}
-        if profile.name_visible:
-            response['name'] = profile.name
-        if profile.location_visible:
-            response['location'] = profile.location
-        if profile.picture_visible:
-            response['picture_id'] = profile.picture_id
+        if profile.deleted:
+            response['deleted'] = True
+        else:
+            if profile.name_visible:
+                response['name'] = profile.name
+            if profile.location_visible:
+                response['location'] = profile.location
+            if profile.picture_visible:
+                response['picture_id'] = profile.picture_id
 
         return HttpResponse(json.dumps(response),
                             mimetype="application/json")
@@ -200,7 +207,8 @@ def profile_DELETE(request, global_id):
     if not utils.check_hmac_authentication(request, profile.account_secret):
         return HttpResponseForbidden()
 
-    profile.delete()
+    profile.deleted = True
+    profile.save()
 
     return HttpResponse(status=200)
 

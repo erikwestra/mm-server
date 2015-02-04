@@ -182,7 +182,8 @@ def picture_DELETE(request, picture_id):
     if not utils.check_hmac_authentication(request, picture.account_secret):
         return HttpResponseForbidden()
 
-    picture.delete()
+    picture.deleted = True
+    picture.save()
 
     return HttpResponse(status=200)
 

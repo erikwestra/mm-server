@@ -25,6 +25,10 @@ object with the following attributes:
 > 
 > > The global ID for the owner of this profile.
 > 
+> `deleted`
+> 
+> > Has this profile been deleted?
+> 
 > `name`
 > 
 > > The name of the profile's owner, as entered by the user.
@@ -59,8 +63,33 @@ another user's profile.
 ## Profile Pictures ##
 
 A profile picture is simply an image file which is uploaded to the `mmServer`
-and can be retrieved later on.  Each picture has a unique **Picture ID** which
-is used to identify that picture.
+and can be retrieved later on.  Each picture is identified by a unique
+**Picture ID**.
+
+In the API, a picture is represented by an object with the following fields:
+
+> `picture_id`
+> 
+> > The unique ID for this picture.
+> 
+> `deleted`
+> 
+> > Has this picture been deleted by the user?
+> 
+> `account_secret`
+> 
+> > The account secret of the user who created this picture.  This ensures that
+> > nobody other than the creator can update or delete a picture.
+> 
+> `filename`
+> 
+> > The filename of the uploaded picture.
+> 
+> `contents`
+> 
+> > The contents of the picture.  Note that you must explicitly retrieve the
+> > picture to download the contents -- the polling system only returns the
+> > other information about the picture.
 
 
 ## Conversations ##
@@ -292,6 +321,33 @@ Since the account secret is also stored on the server, the server can
 calculate its own version of the HMAC digest and compare it against the digest
 sent by the client.  The request will be rejected if (a) the calculated HMAC
 digests don't match, or (b) if the nonce value has been used previously.
+
+
+## Change Detection ##
+
+The `mmServer` API supports clients polling for changes.  The following
+information can be polled for:
+
+ * New and updated user profiles.
+ * New and updated profile pictures.
+ * New and updated conversations.
+ * New and updated messages.
+
+Polling always returns only the information relevant to the currently signed-in
+user.  If the user is not signed in, no polling should be attempted.
+
+Polling uses the concept of an **anchor**.  The anchor is a string that
+identifies a particular state of the data.  If the client does not have an
+anchor value, calling the `GET api/changes` endpoint will return just the
+anchor value that represents the current state of the server.  The client
+should wait a few seconds before making another call to the `GET api/changes`
+endpoint, this time supplying the current anchor value.  The API will return
+any changes which have been made since the previous state of the system, along
+with an updated anchor value that represents the new state of the system.
+
+Polling should be done once every 3-5 seconds.  In this way, the client can be
+kept up-to-date with all changes that occur to the profiles, pictures,
+conversations and messages.
 
 
 ## API Endpoints ##
@@ -631,47 +687,15 @@ More actions may be added in the future as they are needed.
 **`GET api/messages`**
 
 Obtain a list of messages.  This API endpoint must use HMAC authentication.
-The following query-string parameter is required:
+The following query-string parameters are supported:
 
-> `my_global_id`
+> `my_global_id` _(required)_
 > 
 > > The current user's global ID.
-
-In addition, the following optional query-string parameters can also be
-supplied:
-
-> `their_global_id`
+> 
+> `their_global_id` _(optional)_
 > 
 > > The other user's global ID.
-> 
-> `anchor`
-> 
-> > A string used to only return messages which have been sent, or failed to
-> > send, since the last time a call was made to the `GET api/messages`
-> > endpoint.
-> 
-> `get_latest_anchor`
-> 
-> > This can be used to retrieve the latest anchor value without actually
-> > returning any messages.
-
-The exact combination of parameters depends on what the caller is attempting to
-do:
-
- * To retrieve a complete list of all messages sent by or received by a given
-   user, the caller only supplies the `my_global_id` parameter.
-<br/><br/>
- * To retrieve a complete list of all messages sent between two users, the
-   caller should supply the `my_global_id` and `their_global_id` parameters.
-<br/><br/>
- * To retrieve the latest anchor value to use for message polling, the caller
-   should supply only the `my_global_id` and `get_latest_anchor` parameters.
-   The value of the `get_latest_anchor` parameter should be "yes" or "1".
-<br/><br/>
- * To retrieve only the messages which have been added or updated since the
-   last time this API endpoint was called, the caller should supply the
-   `anchor` parameter, in addition to the `my_global_id` and (if relevant) the
-   `their_global_id` parameters.
 
 > _**Note**: the current user must have an existing profile for this API
 > endpoint to work._
@@ -694,26 +718,16 @@ containing the following JSON-format object:
 >           status: "...",
 >           error: "..."},
 >          ...
->      ],
->      next_anchor: "..."
+>      ]
 >     }
 
 Each entry in the `messages` list is an object with the details of the message,
 as described in the Messages section, above.  The `error` field will only be
 present if the message failed to be sent.
 
-If the `get_latest_anchor` parameter was passed to the endpoint, only the
-`next_anchor` value will be returned.
-
-Note that a single message may be returned more than once; if the status of a
-message changes, it will be sent again.  The client should compare the message
-hash to see if the message has already been received, and if so just update the
-existing message's status.  Note that only the `status` and `error` fields will
-ever be updated for a message.
-
-The `next_anchor` value is a string which can be used to make another call to
-the `GET api/messages` endpoint to find any new or updated messages since the
-last time this endpoint was called.
+If the `their_global_id` parameter was supplied, only messages between the two
+users will be returned.  Otherwise, all messages sent to or received by the
+current user will be returned.
 
 If the HMAC authentication details are missing or invalid, the API endpoint
 will return an HTTP response code of 403 (Forbidden).  If there is no user
@@ -783,4 +797,72 @@ endpoint will return an HTTP response code of 404 (Not Found).  If the HMAC
 authentication details are missing or invalid, the API endpoint will return an
 HTTP response code of 403 (Forbidden).  If some required fields are missing,
 the API will return a response code of 400 (Bad Request).
+
+
+### Polling for Changes ###
+
+**`GET api/changes`**
+
+Return a list of everything that has changed since the last time we polled for
+changes.  This API endpoint must use HMAC authentication.  The following
+query-string parameter are supported:
+
+> `my_global_id` _(required)_
+> 
+> > The current user's global ID.
+> 
+> `anchor` _(optional)_
+> 
+> > A string used to identify the current state of the system.
+
+> _**Note**: the current user must have an existing profile for this API
+> endpoint to work._
+
+Upon completion, this API endpoint will return an HTTP response code of 200
+(OK) if the request was successful.  The body of the response will be a string
+containing the following JSON-format object:
+
+>     {changes: [...],
+>      next_anchor: "..."
+>     }
+
+If the `anchor` parameter was not supplied, only the `next_anchor` field will
+be present.  This will hold the anchor value that represents the current state
+of the system, and should be used for subsequent polling requests.
+
+If the `anchor` parameter was supplied, the `changes` array will hold a copy of
+all the records which have been added or updated since the given anchor value
+was calculated.  Each item in the `changes` array will be an object with the
+following fields:
+
+>     {type: "...",
+>      data: {...}
+>     }
+
+The `type` field indicates the type of record being returned, while the `data`
+field contains a copy of the new or updated record.  The following `type`
+values are currently supported:
+
+>     profile
+>     picture
+>     conversation
+>     message
+
+Note that a message may be updated more than once; if the status of a message
+changes, it will be included in the poll results again.  The client should
+compare the message hash to see if the message has already been received, and
+if so just update the existing message's status.  Note that only the `status`
+and `error` fields will ever be updated for a message.
+
+If a record has been deleted, the `data` object will include fields to identify
+the record, and an extra field named `deleted` which will be set to true.
+
+The returned `next_anchor` value should be used to make a subsequent call to
+the `GET api/changes` endpoint to retrieve any new or updated records since the
+last time this endpoint was called.
+
+If the HMAC authentication details are missing or invalid, the API endpoint
+will return an HTTP response code of 403 (Forbidden).  If there is no user
+profile for either of the supplied global ID values, the API endpoint will
+return an HTTP response code of 404 (Not Found).
 

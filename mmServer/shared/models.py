@@ -15,10 +15,46 @@ from mmServer.shared.lib import dbHelpers
 
 #############################################################################
 
-class Profile(models.Model):
+class ModelWithUpdateID(models.Model):
+    """ A generic database model which saves records with a unique update ID.
+    """
+    update_id = models.IntegerField(unique=True, db_index=True, null=True)
+
+    def save(self, *args, **kwargs):
+        """ Save this record after calculating a new update_id value.
+
+            We set the 'update_id' field to the current highest 'update_id'
+            value in the database table, plus 1.  This indicates that this
+            record has been updated.  The record is then saved into the
+            database.
+        """
+        model = type(self)
+        with dbHelpers.exclusive_access(model):
+            max_value = model.objects.all().aggregate(Max('update_id'))
+            if max_value['update_id__max'] == None:
+                next_update_id = 1
+            else:
+                next_update_id = max_value['update_id__max'] + 1
+
+            self.update_id = next_update_id
+            super(ModelWithUpdateID, self).save(*args, **kwargs)
+
+
+    class Meta:
+        """ Metadata for our model.
+
+            We tell Django that this should be an abstract base class.  This
+            adds the 'update_id' field to our child model's database table.
+        """
+        abstract = True
+
+#############################################################################
+
+class Profile(ModelWithUpdateID):
     """ A User's profile.
     """
     global_id        = models.TextField(db_index=True, unique=True)
+    deleted          = models.BooleanField(default=False)
     account_secret   = models.TextField()
     name             = models.TextField()
     name_visible     = models.BooleanField(default=False)
@@ -29,20 +65,21 @@ class Profile(models.Model):
 
 #############################################################################
 
-class Picture(models.Model):
+class Picture(ModelWithUpdateID):
     """ An uploaded picture.
 
         Note that the 'picture_data' field holds the image data in base64
         encoding.
     """
     picture_id       = models.TextField(db_index=True, unique=True)
+    deleted          = models.BooleanField(default=False)
     account_secret   = models.TextField()
     picture_filename = models.TextField()
     picture_data     = models.TextField()
 
 #############################################################################
 
-class Conversation(models.Model):
+class Conversation(ModelWithUpdateID):
     """ A conversation between two users.
     """
     global_id_1    = models.TextField(db_index=True)
@@ -61,12 +98,8 @@ class Conversation(models.Model):
 
 #############################################################################
 
-class Message(models.Model):
+class Message(ModelWithUpdateID):
     """ A message sent between two users.
-
-        Note that the 'update_id' field is used to let callers poll for new and
-        updated messages.  This field should be incremented each time a message
-        is added or updated.
     """
     STATUS_PENDING = 0
     STATUS_SENT    = 2
@@ -83,7 +116,6 @@ class Message(models.Model):
                   STATUS_READ    : "READ",
                   STATUS_FAILED  : "FAILED"}
 
-    update_id            = models.IntegerField(unique=True, db_index=True)
     conversation         = models.ForeignKey(Conversation)
     hash                 = models.TextField(null=True, db_index=True)
     timestamp            = models.DateTimeField()
@@ -99,24 +131,6 @@ class Message(models.Model):
     status               = models.IntegerField(choices=STATUS_CHOICES,
                                                db_index=True)
     error                = models.TextField(null=True)
-
-
-    def save_with_new_update_id(self):
-        """ Save this message after calculating a new update_id value.
-
-            We set the 'update_id' field to the current highest 'update_id' value
-            in the Message table, plus 1.  This indicates that this message has
-            been updated.  The Message record is then saved into the database.
-        """
-        with dbHelpers.exclusive_access(Message):
-            max_value = Message.objects.all().aggregate(Max('update_id'))
-            if max_value['update_id__max'] == None:
-                next_update_id = 1
-            else:
-                next_update_id = max_value['update_id__max'] + 1
-
-            self.update_id = next_update_id
-            self.save()
 
 #############################################################################
 
