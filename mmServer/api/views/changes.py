@@ -120,18 +120,18 @@ def changes_GET(request):
     # "read", since the user is about to receive notification about these
     # messages.
 
-    query = Message.objects.filter(recipient_global_id=my_global_id)
-    if "Message" in anchor:
-        query = query.filter(update_id__gt=anchor['Message'])
-
-    messages_to_update = []
-    for msg in query:
-        if msg.status == Message.STATUS_SENT:
-            messages_to_update.append(msg)
-
-    for msg in messages_to_update:
-        msg.status = Message.STATUS_READ
-        msg.save()
+#    query = Message.objects.filter(recipient_global_id=my_global_id)
+#    if "Message" in anchor:
+#        query = query.filter(update_id__gt=anchor['Message'])
+#
+#    messages_to_update = []
+#    for msg in query:
+#        if msg.status == Message.STATUS_SENT:
+#            messages_to_update.append(msg)
+#
+#    for msg in messages_to_update:
+#        msg.status = Message.STATUS_READ
+#        msg.save()
 
     # Get ready to start collecting updates.
 
