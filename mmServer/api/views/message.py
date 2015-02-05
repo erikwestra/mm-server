@@ -16,6 +16,7 @@ import simplejson as json
 
 from mmServer.shared.models import *
 from mmServer.shared.lib    import utils, rippleInterface, encryption
+from mmServer.shared.lib    import messageHandler
 
 #############################################################################
 
@@ -267,6 +268,11 @@ def message_PUT(request):
     if processed: message.action_processed = True
     if read:      message.status           = Message.STATUS_READ
     message.save()
+
+    # Finally, update the underlying conversation if appropriate.
+
+    if read:
+        messageHandler.update_conversation(message.conversation)
 
     return HttpResponse(status=200)
 

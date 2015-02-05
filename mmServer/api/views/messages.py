@@ -17,7 +17,7 @@ import simplejson as json
 
 from mmServer.shared.models import *
 from mmServer.shared.lib    import rippleInterface, encryption
-from mmServer.shared.lib    import utils, dbHelpers
+from mmServer.shared.lib    import utils, dbHelpers, messageHandler
 
 #############################################################################
 
@@ -69,31 +69,10 @@ def messages_GET(request):
                                            my_profile.account_secret):
         return HttpResponseForbidden()
 
-    # See if we have any pending messages.  If so, ask the Ripple network for
-    # the current status of these messages, and finalize any that have either
-    # failed or been accepted into the Ripple ledger.
+    # Check any pending messages.  If these change status to "sent", we will
+    # include them in the list of returned messages.
 
-    for msg in Message.objects.filter(status=Message.STATUS_PENDING):
-        response = rippleInterface.request("tx", transaction=msg.hash,
-                                                 binary=False)
-        if response == None:
-            continue
-
-        if response['status'] != "success":
-            logger.warn("Ripple server returned error: " + repr(response))
-            continue
-
-        if response['result'].get("validated", False):
-            # This message has been validated -> finalize it.
-
-            trans_result = response['result']['meta']['TransactionResult']
-            if trans_result == "tesSUCCESS":
-                msg.status = Message.STATUS_SENT
-                msg.error  = None
-            else:
-                msg.status  = Message.STATUS_FAILED
-                final.error = trans_result
-            msg.save()
+    messageHandler.check_pending_messages()
 
     # Construct a database query to retrieve the desired set of messages.
 

@@ -12,13 +12,12 @@ import uuid
 from django.utils import unittest, timezone
 import django.test
 
-import mock
 import simplejson as json
 
 from mmServer.shared.models import *
-from mmServer.shared.lib    import utils, encryption
+from mmServer.shared.lib    import utils
 
-import mmServer.api.views.message
+from mmServer.api.tests import apiTestHelpers
 
 #############################################################################
 
@@ -28,31 +27,10 @@ class MessageTestCase(django.test.TestCase):
     def test_send_message(self):
         """ Test the logic of sending a message via the API.
         """
-        # Create a profile for the sender.
+        # Create two random profiles.
 
-        sender_profile = Profile()
-        sender_profile.global_id        = utils.calc_unique_global_id()
-        sender_profile.account_secret   = utils.random_string()
-        sender_profile.name             = utils.random_string()
-        sender_profile.name_visible     = True
-        sender_profile.location         = utils.random_string()
-        sender_profile.location_visible = False
-        sender_profile.picture_id       = utils.random_string()
-        sender_profile.picture_visible  = True
-        sender_profile.save()
-
-        # Create a profile for the recipient.
-
-        recipient_profile = Profile()
-        recipient_profile.global_id        = utils.calc_unique_global_id()
-        recipient_profile.account_secret   = utils.random_string()
-        recipient_profile.name             = utils.random_string()
-        recipient_profile.name_visible     = True
-        recipient_profile.location         = utils.random_string()
-        recipient_profile.location_visible = False
-        recipient_profile.picture_id       = utils.random_string()
-        recipient_profile.picture_visible  = True
-        recipient_profile.save()
+        sender_profile    = apiTestHelpers.create_profile()
+        recipient_profile = apiTestHelpers.create_profile()
 
         # Create two random Ripple account IDs.
 
@@ -61,18 +39,9 @@ class MessageTestCase(django.test.TestCase):
 
         # Create a conversation between these two users.
 
-        conversation = Conversation()
-        conversation.global_id_1    = sender_profile.global_id
-        conversation.global_id_2    = recipient_profile.global_id
-        conversation.hidden_1       = False
-        conversation.hidden_2       = False
-        conversation.encryption_key = encryption.generate_random_key()
-        conversation.last_message   = utils.random_string()
-        conversation.last_timestamp = timezone.now()
-        conversation.num_unread_1   = 0
-        conversation.num_unread_2   = 0
-
-        conversation.save()
+        conversation = \
+            apiTestHelpers.create_conversation(sender_profile.global_id,
+                                               recipient_profile.global_id)
 
         # Create the body of our request.
 
@@ -96,42 +65,11 @@ class MessageTestCase(django.test.TestCase):
             account_secret=sender_profile.account_secret
         )
 
-        # Setup a mock version of the rippleInterface.request() function.  This
-        # replaces the call to rippleInterface.request() in our view function
-        # so the API doesn't actually send the message to the Ripple network.
+        # Install the mock version of the rippleInterface.request() function.
+        # This prevents the rippleInterface module from submitting a message to
+        # the Ripple network.
 
-        tx_hash = uuid.uuid4().hex
-
-        def rippleMockReturnValue(*args, **kwargs):
-            if "command" in kwargs:
-                command = kwargs['command']
-            elif len(args) > 0:
-                command = args[0]
-            else:
-                command = None
-
-            if command == "sign":
-                return {'status' : "success",
-                        'type'   : "response",
-                        'result' : {'tx_blob' : "BLOB"}}
-            elif command == "submit":
-                return {"status" : "success",
-                        "type"   : "response",
-                        "result" : {
-                          "engine_result"         : "tesSUCCESS",
-                          "engine_result_code"    : 0,
-                          "engine_result_message" : "The transaction was " +
-                                                    "applied",
-                          "tx_blob"               : "...",
-                          "tx_json"               : {"hash" : tx_hash,
-                                                     "others" : "..."}
-                        }
-                       }
-            else:
-                raise RuntimeError("Unexpected command!")
-
-        rippleMock = mock.Mock(side_effect=rippleMockReturnValue)
-        mmServer.api.views.message.rippleInterface.request = rippleMock
+        rippleMock = apiTestHelpers.install_mock_ripple_interface()
 
         # Ask the "POST /api/message" endpoint to create the message.
 
@@ -154,7 +92,7 @@ class MessageTestCase(django.test.TestCase):
 
         self.assertIsNotNone(message.update_id)
         self.assertEqual(message.conversation, conversation)
-        self.assertEqual(message.hash, tx_hash)
+        self.assertIsNotNone(message.hash)
         self.assertIsNotNone(message.timestamp)
         self.assertEqual(message.sender_global_id, sender_profile.global_id)
         self.assertEqual(message.recipient_global_id,
@@ -173,31 +111,10 @@ class MessageTestCase(django.test.TestCase):
     def test_send_message_with_action(self):
         """ Test the logic of sending a message with an attached action.
         """
-        # Create a profile for the sender.
+        # Create two random profiles for testing.
 
-        sender_profile = Profile()
-        sender_profile.global_id        = utils.calc_unique_global_id()
-        sender_profile.account_secret   = utils.random_string()
-        sender_profile.name             = utils.random_string()
-        sender_profile.name_visible     = True
-        sender_profile.location         = utils.random_string()
-        sender_profile.location_visible = False
-        sender_profile.picture_id       = utils.random_string()
-        sender_profile.picture_visible  = True
-        sender_profile.save()
-
-        # Create a profile for the recipient.
-
-        recipient_profile = Profile()
-        recipient_profile.global_id        = utils.calc_unique_global_id()
-        recipient_profile.account_secret   = utils.random_string()
-        recipient_profile.name             = utils.random_string()
-        recipient_profile.name_visible     = True
-        recipient_profile.location         = utils.random_string()
-        recipient_profile.location_visible = False
-        recipient_profile.picture_id       = utils.random_string()
-        recipient_profile.picture_visible  = True
-        recipient_profile.save()
+        sender_profile    = apiTestHelpers.create_profile()
+        recipient_profile = apiTestHelpers.create_profile()
 
         # Create two random Ripple account IDs.
 
@@ -206,18 +123,9 @@ class MessageTestCase(django.test.TestCase):
 
         # Create a conversation between these two users.
 
-        conversation = Conversation()
-        conversation.global_id_1    = sender_profile.global_id
-        conversation.global_id_2    = recipient_profile.global_id
-        conversation.hidden_1       = False
-        conversation.hidden_2       = False
-        conversation.encryption_key = encryption.generate_random_key()
-        conversation.last_message   = utils.random_string()
-        conversation.last_timestamp = timezone.now()
-        conversation.num_unread_1   = 0
-        conversation.num_unread_2   = 0
-
-        conversation.save()
+        conversation = \
+            apiTestHelpers.create_conversation(sender_profile.global_id,
+                                               recipient_profile.global_id)
 
         # Create the body of our request.
 
@@ -244,42 +152,11 @@ class MessageTestCase(django.test.TestCase):
             account_secret=sender_profile.account_secret
         )
 
-        # Setup a mock version of the rippleInterface.request() function.  This
-        # replaces the call to rippleInterface.request() in our view function
-        # so the API doesn't actually send the message to the Ripple network.
+        # Install the mock version of the rippleInterface.request() function.
+        # This prevents the rippleInterface module from submitting a message to
+        # the Ripple network.
 
-        tx_hash = uuid.uuid4().hex
-
-        def rippleMockReturnValue(*args, **kwargs):
-            if "command" in kwargs:
-                command = kwargs['command']
-            elif len(args) > 0:
-                command = args[0]
-            else:
-                command = None
-
-            if command == "sign":
-                return {'status' : "success",
-                        'type'   : "response",
-                        'result' : {'tx_blob' : "BLOB"}}
-            elif command == "submit":
-                return {"status" : "success",
-                        "type"   : "response",
-                        "result" : {
-                          "engine_result"         : "tesSUCCESS",
-                          "engine_result_code"    : 0,
-                          "engine_result_message" : "The transaction was " +
-                                                    "applied",
-                          "tx_blob"               : "...",
-                          "tx_json"               : {"hash" : tx_hash,
-                                                     "others" : "..."}
-                        }
-                       }
-            else:
-                raise RuntimeError("Unexpected command!")
-
-        rippleMock = mock.Mock(side_effect=rippleMockReturnValue)
-        mmServer.api.views.message.rippleInterface.request = rippleMock
+        rippleMock = apiTestHelpers.install_mock_ripple_interface()
 
         # Ask the "POST /api/message" endpoint to create the message.
 
@@ -302,7 +179,7 @@ class MessageTestCase(django.test.TestCase):
 
         self.assertIsNotNone(message.update_id)
         self.assertEqual(message.conversation, conversation)
-        self.assertEqual(message.hash, tx_hash)
+        self.assertIsNotNone(message.hash)
         self.assertIsNotNone(message.timestamp)
         self.assertEqual(message.sender_global_id, sender_profile.global_id)
         self.assertEqual(message.recipient_global_id,
@@ -321,46 +198,16 @@ class MessageTestCase(django.test.TestCase):
     def test_update_message(self):
         """ Check that the "PUT api/message" message updates a message.
         """
-        # Create a profile for the sender.
+        # Create two profiles, for testing.
 
-        sender_profile = Profile()
-        sender_profile.global_id        = utils.calc_unique_global_id()
-        sender_profile.account_secret   = utils.random_string()
-        sender_profile.name             = utils.random_string()
-        sender_profile.name_visible     = True
-        sender_profile.location         = utils.random_string()
-        sender_profile.location_visible = False
-        sender_profile.picture_id       = utils.random_string()
-        sender_profile.picture_visible  = True
-        sender_profile.save()
-
-        # Create a profile for the recipient.
-
-        recipient_profile = Profile()
-        recipient_profile.global_id        = utils.calc_unique_global_id()
-        recipient_profile.account_secret   = utils.random_string()
-        recipient_profile.name             = utils.random_string()
-        recipient_profile.name_visible     = True
-        recipient_profile.location         = utils.random_string()
-        recipient_profile.location_visible = False
-        recipient_profile.picture_id       = utils.random_string()
-        recipient_profile.picture_visible  = True
-        recipient_profile.save()
+        sender_profile    = apiTestHelpers.create_profile()
+        recipient_profile = apiTestHelpers.create_profile()
 
         # Create a conversation between these two users.
 
-        conversation = Conversation()
-        conversation.global_id_1    = sender_profile.global_id
-        conversation.global_id_2    = recipient_profile.global_id
-        conversation.hidden_1       = False
-        conversation.hidden_2       = False
-        conversation.encryption_key = encryption.generate_random_key()
-        conversation.last_message   = utils.random_string()
-        conversation.last_timestamp = timezone.now()
-        conversation.num_unread_1   = 0
-        conversation.num_unread_2   = 0
-
-        conversation.save()
+        conversation = \
+            apiTestHelpers.create_conversation(sender_profile.global_id,
+                                               recipient_profile.global_id)
 
         # Create random Ripple account IDs for our two users.
 
@@ -423,71 +270,25 @@ class MessageTestCase(django.test.TestCase):
         """
         # Create a profile for the current user.
 
-        my_profile = Profile()
-        my_profile.global_id        = utils.calc_unique_global_id()
-        my_profile.account_secret   = utils.random_string()
-        my_profile.name             = utils.random_string()
-        my_profile.name_visible     = True
-        my_profile.location         = utils.random_string()
-        my_profile.location_visible = False
-        my_profile.picture_id       = utils.random_string()
-        my_profile.picture_visible  = True
-        my_profile.save()
+        my_profile = apiTestHelpers.create_profile()
 
         # Create profile for two other users the current user is communicating
         # with.
 
-        other_profile_1 = Profile()
-        other_profile_1.global_id        = utils.calc_unique_global_id()
-        other_profile_1.account_secret   = utils.random_string()
-        other_profile_1.name             = utils.random_string()
-        other_profile_1.name_visible     = True
-        other_profile_1.location         = utils.random_string()
-        other_profile_1.location_visible = False
-        other_profile_1.picture_id       = utils.random_string()
-        other_profile_1.picture_visible  = True
-        other_profile_1.save()
-
-        other_profile_2 = Profile()
-        other_profile_2.global_id        = utils.calc_unique_global_id()
-        other_profile_2.account_secret   = utils.random_string()
-        other_profile_2.name             = utils.random_string()
-        other_profile_2.name_visible     = True
-        other_profile_2.location         = utils.random_string()
-        other_profile_2.location_visible = False
-        other_profile_2.picture_id       = utils.random_string()
-        other_profile_2.picture_visible  = True
-        other_profile_2.save()
+        other_profile_1 = apiTestHelpers.create_profile()
+        other_profile_2 = apiTestHelpers.create_profile()
 
         # Create a conversation between the current user and other user 1.
 
-        conversation_1 = Conversation()
-        conversation_1.global_id_1    = my_profile.global_id
-        conversation_1.global_id_2    = other_profile_1.global_id
-        conversation_1.hidden_1       = False
-        conversation_1.hidden_2       = False
-        conversation_1.encryption_key = encryption.generate_random_key()
-        conversation_1.last_message   = utils.random_string()
-        conversation_1.last_timestamp = timezone.now()
-        conversation_1.num_unread_1   = 0
-        conversation_1.num_unread_2   = 0
-
-        conversation_1.save()
+        conversation_1 = \
+            apiTestHelpers.create_conversation(my_profile.global_id,
+                                               other_profile_1.global_id)
 
         # Create a conversation between the current user and other user 2.
 
-        conversation_2 = Conversation()
-        conversation_2.global_id_1    = my_profile.global_id
-        conversation_2.global_id_2    = other_profile_2.global_id
-        conversation_2.hidden_1       = False
-        conversation_2.hidden_2       = False
-        conversation_2.encryption_key = encryption.generate_random_key()
-        conversation_2.last_message   = utils.random_string()
-        conversation_2.last_timestamp = timezone.now()
-        conversation_2.num_unread_1   = 0
-        conversation_2.num_unread_2   = 0
-
-        conversation_2.save()
+        conversation_2 = \
+            apiTestHelpers.create_conversation(my_profile.global_id,
+                                               other_profile_2.global_id)
 
         # Create random Ripple account IDs for our three users.
 
@@ -581,46 +382,16 @@ class MessageTestCase(django.test.TestCase):
     def test_get_conversation_messages(self):
         """ Check that "GET api/messages" returns messages between two users.
         """
-        # Create a profile for the sender.
+        # Create two profiles, for testing.
 
-        sender_profile = Profile()
-        sender_profile.global_id        = utils.calc_unique_global_id()
-        sender_profile.account_secret   = utils.random_string()
-        sender_profile.name             = utils.random_string()
-        sender_profile.name_visible     = True
-        sender_profile.location         = utils.random_string()
-        sender_profile.location_visible = False
-        sender_profile.picture_id       = utils.random_string()
-        sender_profile.picture_visible  = True
-        sender_profile.save()
-
-        # Create a profile for the recipient.
-
-        recipient_profile = Profile()
-        recipient_profile.global_id        = utils.calc_unique_global_id()
-        recipient_profile.account_secret   = utils.random_string()
-        recipient_profile.name             = utils.random_string()
-        recipient_profile.name_visible     = True
-        recipient_profile.location         = utils.random_string()
-        recipient_profile.location_visible = False
-        recipient_profile.picture_id       = utils.random_string()
-        recipient_profile.picture_visible  = True
-        recipient_profile.save()
+        sender_profile    = apiTestHelpers.create_profile()
+        recipient_profile = apiTestHelpers.create_profile()
 
         # Create a conversation between these two users.
 
-        conversation = Conversation()
-        conversation.global_id_1    = sender_profile.global_id
-        conversation.global_id_2    = recipient_profile.global_id
-        conversation.hidden_1       = False
-        conversation.hidden_2       = False
-        conversation.encryption_key = encryption.generate_random_key()
-        conversation.last_message   = utils.random_string()
-        conversation.last_timestamp = timezone.now()
-        conversation.num_unread_1   = 0
-        conversation.num_unread_2   = 0
-
-        conversation.save()
+        conversation = \
+            apiTestHelpers.create_conversation(sender_profile.global_id,
+                                               recipient_profile.global_id)
 
         # Create random Ripple account IDs for our two users.
 
@@ -695,46 +466,16 @@ class MessageTestCase(django.test.TestCase):
             pending message is finalized and appears in the list of final
             messages.
         """
-        # Create a profile for the sender.
+        # Create two profiles, for testing.
 
-        sender_profile = Profile()
-        sender_profile.global_id        = utils.calc_unique_global_id()
-        sender_profile.account_secret   = utils.random_string()
-        sender_profile.name             = utils.random_string()
-        sender_profile.name_visible     = True
-        sender_profile.location         = utils.random_string()
-        sender_profile.location_visible = False
-        sender_profile.picture_id       = utils.random_string()
-        sender_profile.picture_visible  = True
-        sender_profile.save()
-
-        # Create a profile for the recipient.
-
-        recipient_profile = Profile()
-        recipient_profile.global_id        = utils.calc_unique_global_id()
-        recipient_profile.account_secret   = utils.random_string()
-        recipient_profile.name             = utils.random_string()
-        recipient_profile.name_visible     = True
-        recipient_profile.location         = utils.random_string()
-        recipient_profile.location_visible = False
-        recipient_profile.picture_id       = utils.random_string()
-        recipient_profile.picture_visible  = True
-        recipient_profile.save()
+        sender_profile    = apiTestHelpers.create_profile()
+        recipient_profile = apiTestHelpers.create_profile()
 
         # Create a conversation between these two users.
 
-        conversation = Conversation()
-        conversation.global_id_1    = sender_profile.global_id
-        conversation.global_id_2    = recipient_profile.global_id
-        conversation.hidden_1       = False
-        conversation.hidden_2       = False
-        conversation.encryption_key = encryption.generate_random_key()
-        conversation.last_message   = utils.random_string()
-        conversation.last_timestamp = timezone.now()
-        conversation.num_unread_1   = 0
-        conversation.num_unread_2   = 0
-
-        conversation.save()
+        conversation = \
+            apiTestHelpers.create_conversation(sender_profile.global_id,
+                                               recipient_profile.global_id)
 
         # Create random Ripple account IDs for our two users.
 
@@ -766,39 +507,11 @@ class MessageTestCase(django.test.TestCase):
             account_secret=sender_profile.account_secret
         )
 
-        # Setup a mock version of the rippleInterface.request() function.  This
-        # replaces the call to rippleInterface.request() in our view function
-        # so the API doesn't actually ask the Ripple network for the status of
-        # the message.
+        # Install the mock version of the rippleInterface.request() function.
+        # This prevents the rippleInterface module from submitting a message to
+        # the Ripple network.
 
-        tx_hash = uuid.uuid4().hex
-
-        def rippleMockReturnValue(*args, **kwargs):
-            if "command" in kwargs:
-                command = kwargs['command']
-            elif len(args) > 0:
-                command = args[0]
-            else:
-                command = None
-
-            if command == "tx":
-                return {'status' : "success",
-                        'type'   : "response",
-                        'result' : {
-                            'validated' : True,
-                            'status'    : "success",
-                            'meta'      : {
-                                'TransactionResult' : "tesSUCCESS",
-                                'other'             : "...",
-                            },
-                            'other'     : "...",
-                        }
-                       }
-            else:
-                raise RuntimeError("Unexpected command!")
-
-        rippleMock = mock.Mock(side_effect=rippleMockReturnValue)
-        mmServer.api.views.message.rippleInterface.request = rippleMock
+        rippleMock = apiTestHelpers.install_mock_ripple_interface()
 
         # Ask the "GET api/messages" endpoint to return the messages for this
         # conversation.  All going well, the endpoint should check with the
@@ -807,6 +520,7 @@ class MessageTestCase(django.test.TestCase):
 
         url = "/api/messages?my_global_id=" + sender_profile.global_id \
             + "&their_global_id=" + recipient_profile.global_id
+
         response = self.client.get(url,
                                    "",
                                    content_type="application/json",

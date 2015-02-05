@@ -11,13 +11,11 @@ import uuid
 from django.utils import unittest, timezone
 import django.test
 
-import mock
 import simplejson as json
 
 from mmServer.shared.models import *
 from mmServer.shared.lib    import utils, encryption
-
-import mmServer.api.views.message
+from mmServer.api.tests     import apiTestHelpers
 
 #############################################################################
 
@@ -29,16 +27,7 @@ class ChangesTestCase(django.test.TestCase):
         """
         # Create a profile for the current user.
 
-        my_profile = Profile()
-        my_profile.global_id        = utils.calc_unique_global_id()
-        my_profile.account_secret   = utils.random_string()
-        my_profile.name             = utils.random_string()
-        my_profile.name_visible     = True
-        my_profile.location         = utils.random_string()
-        my_profile.location_visible = False
-        my_profile.picture_id       = utils.random_string()
-        my_profile.picture_visible  = True
-        my_profile.save()
+        my_profile = apiTestHelpers.create_profile()
 
         # Calculate a global ID and account secret for the other user.  Note
         # that the user won't have a profile yet.
@@ -48,17 +37,9 @@ class ChangesTestCase(django.test.TestCase):
 
         # Create a conversation between these two users.
 
-        conversation = Conversation()
-        conversation.global_id_1    = my_profile.global_id
-        conversation.global_id_2    = other_user_global_id
-        conversation.hidden_1       = False
-        conversation.hidden_2       = False
-        conversation.encryption_key = encryption.generate_random_key()
-        conversation.last_message   = utils.random_string()
-        conversation.last_timestamp = timezone.now()
-        conversation.num_unread_1   = 0
-        conversation.num_unread_2   = 0
-        conversation.save()
+        conversation = \
+            apiTestHelpers.create_conversation(my_profile.global_id,
+                                               other_user_global_id)
 
         # Ask the "/changes" endpoint for the current anchor value.
 
@@ -148,41 +129,13 @@ class ChangesTestCase(django.test.TestCase):
         """
         # Create profiles for two users.
 
-        profile_1 = Profile()
-        profile_1.global_id        = utils.calc_unique_global_id()
-        profile_1.account_secret   = utils.random_string()
-        profile_1.name             = utils.random_string()
-        profile_1.name_visible     = True
-        profile_1.location         = utils.random_string()
-        profile_1.location_visible = False
-        profile_1.picture_id       = utils.random_string()
-        profile_1.picture_visible  = True
-        profile_1.save()
-
-        profile_2 = Profile()
-        profile_2.global_id        = utils.calc_unique_global_id()
-        profile_2.account_secret   = utils.random_string()
-        profile_2.name             = utils.random_string()
-        profile_2.name_visible     = True
-        profile_2.location         = utils.random_string()
-        profile_2.location_visible = False
-        profile_2.picture_id       = utils.random_string()
-        profile_2.picture_visible  = True
-        profile_2.save()
+        profile_1 = apiTestHelpers.create_profile()
+        profile_2 = apiTestHelpers.create_profile()
 
         # Create a conversation between these two users.
 
-        conversation = Conversation()
-        conversation.global_id_1    = profile_1.global_id
-        conversation.global_id_2    = profile_2.global_id
-        conversation.hidden_1       = False
-        conversation.hidden_2       = False
-        conversation.encryption_key = encryption.generate_random_key()
-        conversation.last_message   = utils.random_string()
-        conversation.last_timestamp = timezone.now()
-        conversation.num_unread_1   = 0
-        conversation.num_unread_2   = 0
-        conversation.save()
+        conversation = apiTestHelpers.create_conversation(profile_1.global_id,
+                                                          profile_2.global_id)
 
         # Ask the "/changes" endpoint for the current anchor value.
 
@@ -281,41 +234,13 @@ class ChangesTestCase(django.test.TestCase):
         """
         # Create profiles for two users.
 
-        profile_1 = Profile()
-        profile_1.global_id        = utils.calc_unique_global_id()
-        profile_1.account_secret   = utils.random_string()
-        profile_1.name             = utils.random_string()
-        profile_1.name_visible     = True
-        profile_1.location         = utils.random_string()
-        profile_1.location_visible = False
-        profile_1.picture_id       = utils.random_string()
-        profile_1.picture_visible  = True
-        profile_1.save()
-
-        profile_2 = Profile()
-        profile_2.global_id        = utils.calc_unique_global_id()
-        profile_2.account_secret   = utils.random_string()
-        profile_2.name             = utils.random_string()
-        profile_2.name_visible     = True
-        profile_2.location         = utils.random_string()
-        profile_2.location_visible = False
-        profile_2.picture_id       = utils.random_string()
-        profile_2.picture_visible  = True
-        profile_2.save()
+        profile_1 = apiTestHelpers.create_profile()
+        profile_2 = apiTestHelpers.create_profile()
 
         # Create a conversation between these two users.
 
-        conversation = Conversation()
-        conversation.global_id_1    = profile_1.global_id
-        conversation.global_id_2    = profile_2.global_id
-        conversation.hidden_1       = False
-        conversation.hidden_2       = False
-        conversation.encryption_key = encryption.generate_random_key()
-        conversation.last_message   = utils.random_string()
-        conversation.last_timestamp = timezone.now()
-        conversation.num_unread_1   = 0
-        conversation.num_unread_2   = 0
-        conversation.save()
+        conversation = apiTestHelpers.create_conversation(profile_1.global_id,
+                                                          profile_2.global_id)
 
         # Ask the "/changes" endpoint for the current anchor value.
 
@@ -391,16 +316,7 @@ class ChangesTestCase(django.test.TestCase):
         """
         # Create a dummy profile.
 
-        profile = Profile()
-        profile.global_id        = utils.calc_unique_global_id()
-        profile.account_secret   = utils.random_string()
-        profile.name             = utils.random_string()
-        profile.name_visible     = True
-        profile.location         = utils.random_string()
-        profile.location_visible = False
-        profile.picture_id       = utils.random_string()
-        profile.picture_visible  = True
-        profile.save()
+        profile = apiTestHelpers.create_profile()
 
         # Ask the "/changes" endpoint for the current anchor value.
 
@@ -489,26 +405,11 @@ class ChangesTestCase(django.test.TestCase):
         """
         # Create a dummy profile.
 
-        profile = Profile()
-        profile.global_id        = utils.calc_unique_global_id()
-        profile.account_secret   = utils.random_string()
-        profile.name             = utils.random_string()
-        profile.name_visible     = True
-        profile.location         = utils.random_string()
-        profile.location_visible = False
-        profile.picture_id       = utils.random_string()
-        profile.picture_visible  = True
-        profile.save()
+        profile = apiTestHelpers.create_profile()
 
         # Create a dummy picture.
 
-        picture = Picture()
-        picture.picture_id       = utils.calc_unique_picture_id()
-        picture.deleted          = False
-        picture.account_secret   = utils.random_string()
-        picture.picture_filename = utils.random_string() + ".png"
-        picture.picture_data     = base64.b64encode(utils.random_string())
-        picture.save()
+        picture = apiTestHelpers.create_picture()
 
         # Ask the "/changes" endpoint for the current anchor value.
 
@@ -602,26 +503,11 @@ class ChangesTestCase(django.test.TestCase):
         """
         # Create a dummy profile.
 
-        profile = Profile()
-        profile.global_id        = utils.calc_unique_global_id()
-        profile.account_secret   = utils.random_string()
-        profile.name             = utils.random_string()
-        profile.name_visible     = True
-        profile.location         = utils.random_string()
-        profile.location_visible = False
-        profile.picture_id       = utils.random_string()
-        profile.picture_visible  = True
-        profile.save()
+        profile = apiTestHelpers.create_profile()
 
         # Create a dummy picture.
 
-        picture = Picture()
-        picture.picture_id       = utils.calc_unique_picture_id()
-        picture.deleted          = False
-        picture.account_secret   = utils.random_string()
-        picture.picture_filename = utils.random_string() + ".png"
-        picture.picture_data     = base64.b64encode(utils.random_string())
-        picture.save()
+        picture = apiTestHelpers.create_picture()
 
         # Ask the "/changes" endpoint for the current anchor value.
 
@@ -704,27 +590,8 @@ class ChangesTestCase(django.test.TestCase):
         """
         # Create two profiles for us to use.
 
-        my_profile = Profile()
-        my_profile.global_id        = utils.calc_unique_global_id()
-        my_profile.account_secret   = utils.random_string()
-        my_profile.name             = utils.random_string()
-        my_profile.name_visible     = True
-        my_profile.location         = utils.random_string()
-        my_profile.location_visible = False
-        my_profile.picture_id       = utils.random_string()
-        my_profile.picture_visible  = True
-        my_profile.save()
-
-        their_profile = Profile()
-        their_profile.global_id        = utils.calc_unique_global_id()
-        their_profile.account_secret   = utils.random_string()
-        their_profile.name             = utils.random_string()
-        their_profile.name_visible     = True
-        their_profile.location         = utils.random_string()
-        their_profile.location_visible = False
-        their_profile.picture_id       = utils.random_string()
-        their_profile.picture_visible  = True
-        their_profile.save()
+        my_profile    = apiTestHelpers.create_profile()
+        their_profile = apiTestHelpers.create_profile()
 
         my_global_id    = my_profile.global_id
         their_global_id = their_profile.global_id
@@ -807,41 +674,13 @@ class ChangesTestCase(django.test.TestCase):
         """
         # Create profiles for two users.
 
-        profile_1 = Profile()
-        profile_1.global_id        = utils.calc_unique_global_id()
-        profile_1.account_secret   = utils.random_string()
-        profile_1.name             = utils.random_string()
-        profile_1.name_visible     = True
-        profile_1.location         = utils.random_string()
-        profile_1.location_visible = False
-        profile_1.picture_id       = utils.random_string()
-        profile_1.picture_visible  = True
-        profile_1.save()
-
-        profile_2 = Profile()
-        profile_2.global_id        = utils.calc_unique_global_id()
-        profile_2.account_secret   = utils.random_string()
-        profile_2.name             = utils.random_string()
-        profile_2.name_visible     = True
-        profile_2.location         = utils.random_string()
-        profile_2.location_visible = False
-        profile_2.picture_id       = utils.random_string()
-        profile_2.picture_visible  = True
-        profile_2.save()
+        profile_1 = apiTestHelpers.create_profile()
+        profile_2 = apiTestHelpers.create_profile()
 
         # Create a conversation between these two users.
 
-        conversation = Conversation()
-        conversation.global_id_1    = profile_1.global_id
-        conversation.global_id_2    = profile_2.global_id
-        conversation.hidden_1       = False
-        conversation.hidden_2       = False
-        conversation.encryption_key = encryption.generate_random_key()
-        conversation.last_message   = utils.random_string()
-        conversation.last_timestamp = timezone.now()
-        conversation.num_unread_1   = 0
-        conversation.num_unread_2   = 0
-        conversation.save()
+        conversation = apiTestHelpers.create_conversation(profile_1.global_id,
+                                                          profile_2.global_id)
 
         # Ask the "/changes" endpoint for the current anchor value.
 
@@ -867,8 +706,7 @@ class ChangesTestCase(django.test.TestCase):
 
         request = json.dumps({'my_global_id'    : profile_1.global_id,
                               'their_global_id' : profile_2.global_id,
-                              'action'          : "NEW_MESSAGE",
-                              'message'         : utils.random_string()})
+                              'action'          : "HIDE"})
 
         headers = utils.calc_hmac_headers(
             method="PUT",
@@ -923,41 +761,13 @@ class ChangesTestCase(django.test.TestCase):
         """
         # Create profiles for two users.
 
-        profile_1 = Profile()
-        profile_1.global_id        = utils.calc_unique_global_id()
-        profile_1.account_secret   = utils.random_string()
-        profile_1.name             = utils.random_string()
-        profile_1.name_visible     = True
-        profile_1.location         = utils.random_string()
-        profile_1.location_visible = False
-        profile_1.picture_id       = utils.random_string()
-        profile_1.picture_visible  = True
-        profile_1.save()
-
-        profile_2 = Profile()
-        profile_2.global_id        = utils.calc_unique_global_id()
-        profile_2.account_secret   = utils.random_string()
-        profile_2.name             = utils.random_string()
-        profile_2.name_visible     = True
-        profile_2.location         = utils.random_string()
-        profile_2.location_visible = False
-        profile_2.picture_id       = utils.random_string()
-        profile_2.picture_visible  = True
-        profile_2.save()
+        profile_1 = apiTestHelpers.create_profile()
+        profile_2 = apiTestHelpers.create_profile()
 
         # Create a conversation between these two users.
 
-        conversation = Conversation()
-        conversation.global_id_1    = profile_1.global_id
-        conversation.global_id_2    = profile_2.global_id
-        conversation.hidden_1       = False
-        conversation.hidden_2       = False
-        conversation.encryption_key = encryption.generate_random_key()
-        conversation.last_message   = utils.random_string()
-        conversation.last_timestamp = timezone.now()
-        conversation.num_unread_1   = 0
-        conversation.num_unread_2   = 0
-        conversation.save()
+        conversation = apiTestHelpers.create_conversation(profile_1.global_id,
+                                                          profile_2.global_id)
 
         # Create two random Ripple account IDs.
 
@@ -1006,42 +816,11 @@ class ChangesTestCase(django.test.TestCase):
             account_secret=profile_1.account_secret
         )
 
-        # Setup a mock version of the rippleInterface.request() function.  This
-        # replaces the call to rippleInterface.request() in our view function
-        # so the API doesn't actually send the message to the Ripple network.
+        # Install the mock version of the rippleInterface.request() function.
+        # This prevents the rippleInterface module from submitting a message to
+        # the Ripple network.
 
-        tx_hash = uuid.uuid4().hex
-
-        def rippleMockReturnValue(*args, **kwargs):
-            if "command" in kwargs:
-                command = kwargs['command']
-            elif len(args) > 0:
-                command = args[0]
-            else:
-                command = None
-
-            if command == "sign":
-                return {'status' : "success",
-                        'type'   : "response",
-                        'result' : {'tx_blob' : "BLOB"}}
-            elif command == "submit":
-                return {"status" : "success",
-                        "type"   : "response",
-                        "result" : {
-                          "engine_result"         : "tesSUCCESS",
-                          "engine_result_code"    : 0,
-                          "engine_result_message" : "The transaction was " +
-                                                    "applied",
-                          "tx_blob"               : "...",
-                          "tx_json"               : {"hash" : tx_hash,
-                                                     "others" : "..."}
-                        }
-                       }
-            else:
-                raise RuntimeError("Unexpected command!")
-
-        rippleMock = mock.Mock(side_effect=rippleMockReturnValue)
-        mmServer.api.views.message.rippleInterface.request = rippleMock
+        rippleMock = apiTestHelpers.install_mock_ripple_interface()
 
         # Ask the "POST /api/message" endpoint to create the message.
 
@@ -1052,40 +831,6 @@ class ChangesTestCase(django.test.TestCase):
         if response.status_code != 202:
             print response.content
         self.assertEqual(response.status_code, 202)
-
-        # Setup another mock version of the rippleInterface.request() function.
-        # This one replaces the call to rippleInterface.request() in our view
-        # function so the API doesn't actually ask the Ripple network for the
-        # status of the message when we poll for updates.
-
-        tx_hash = uuid.uuid4().hex
-
-        def rippleMockReturnValue(*args, **kwargs):
-            if "command" in kwargs:
-                command = kwargs['command']
-            elif len(args) > 0:
-                command = args[0]
-            else:
-                command = None
-
-            if command == "tx":
-                return {'status' : "success",
-                        'type'   : "response",
-                        'result' : {
-                            'validated' : True,
-                            'status'    : "success",
-                            'meta'      : {
-                                'TransactionResult' : "tesSUCCESS",
-                                'other'             : "...",
-                            },
-                            'other'     : "...",
-                        }
-                       }
-            else:
-                raise RuntimeError("Unexpected command!")
-
-        rippleMock = mock.Mock(side_effect=rippleMockReturnValue)
-        mmServer.api.views.message.rippleInterface.request = rippleMock
 
         # Now ask the "/changes" endpoint for the things that have changed
         # since the anchor was calculated.
@@ -1128,41 +873,13 @@ class ChangesTestCase(django.test.TestCase):
         """
         # Create profiles for two users.
 
-        profile_1 = Profile()
-        profile_1.global_id        = utils.calc_unique_global_id()
-        profile_1.account_secret   = utils.random_string()
-        profile_1.name             = utils.random_string()
-        profile_1.name_visible     = True
-        profile_1.location         = utils.random_string()
-        profile_1.location_visible = False
-        profile_1.picture_id       = utils.random_string()
-        profile_1.picture_visible  = True
-        profile_1.save()
-
-        profile_2 = Profile()
-        profile_2.global_id        = utils.calc_unique_global_id()
-        profile_2.account_secret   = utils.random_string()
-        profile_2.name             = utils.random_string()
-        profile_2.name_visible     = True
-        profile_2.location         = utils.random_string()
-        profile_2.location_visible = False
-        profile_2.picture_id       = utils.random_string()
-        profile_2.picture_visible  = True
-        profile_2.save()
+        profile_1 = apiTestHelpers.create_profile()
+        profile_2 = apiTestHelpers.create_profile()
 
         # Create a conversation between these two users.
 
-        conversation = Conversation()
-        conversation.global_id_1    = profile_1.global_id
-        conversation.global_id_2    = profile_2.global_id
-        conversation.hidden_1       = False
-        conversation.hidden_2       = False
-        conversation.encryption_key = encryption.generate_random_key()
-        conversation.last_message   = utils.random_string()
-        conversation.last_timestamp = timezone.now()
-        conversation.num_unread_1   = 0
-        conversation.num_unread_2   = 0
-        conversation.save()
+        conversation = apiTestHelpers.create_conversation(profile_1.global_id,
+                                                          profile_2.global_id)
 
         # Create two random Ripple account IDs.
 

@@ -136,12 +136,14 @@ following fields:
 > `num_unread_1`
 > 
 > > The number of messages the first user has not yet seen in this
-> > conversation.
+> > conversation.  This is calculated based on the current status of the
+> > messages sent to this user.
 > 
 > `num_unread_2`
 > 
 > > The number of messages the second user has not yet seen in this
-> > conversation.
+> > conversation.  This is calculated based on the current status of the
+> > messages sent to this user.
 
 Note that the conversation is **adapted** to match the viewpoint of the current
 user.  That is, if the current user's global ID matches `global_id_1`, then the
@@ -648,18 +650,6 @@ the action.
 
 The following actions are currently supported:
 
-> `NEW_MESSAGE`
-> 
-> > A new message was created by the user for this conversation.  For this
-> > action, the request object must have a "message" field containing the text
-> > of the message.  The conversation's timestamp will also be updated, and the
-> > other user's unread message count will be incremented by one.
-> 
-> `READ`
-> 
-> > The conversation has been read by this user.  The number of unread messages
-> > for this user will be reset to zero.
-> 
 > `HIDE`
 > 
 > > Hide this conversation for this user.  The conversation will no longer

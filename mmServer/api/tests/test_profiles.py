@@ -11,6 +11,7 @@ import simplejson as json
 
 from mmServer.shared.models import *
 from mmServer.shared.lib    import utils
+from mmServer.api.tests     import apiTestHelpers
 
 #############################################################################
 
@@ -37,16 +38,7 @@ class ProfileTestCase(django.test.TestCase):
         """
         # Create a dummy profile for testing.
 
-        profile = Profile()
-        profile.global_id        = utils.calc_unique_global_id()
-        profile.account_secret   = utils.random_string()
-        profile.name             = utils.random_string()
-        profile.name_visible     = True
-        profile.location         = utils.random_string()
-        profile.location_visible = False
-        profile.picture_id       = utils.random_string()
-        profile.picture_visible  = True
-        profile.save()
+        profile = apiTestHelpers.create_profile()
 
         # Ask the "GET api/profile/<GLOBAL_ID>" endpoint to return the
         # publically-visible parts of the profile.
@@ -88,16 +80,7 @@ class ProfileTestCase(django.test.TestCase):
         """
         # Create a dummy profile for testing.
 
-        profile = Profile()
-        profile.global_id        = utils.calc_unique_global_id()
-        profile.account_secret   = utils.random_string()
-        profile.name             = utils.random_string()
-        profile.name_visible     = True
-        profile.location         = utils.random_string()
-        profile.location_visible = False
-        profile.picture_id       = utils.random_string()
-        profile.picture_visible  = True
-        profile.save()
+        profile = apiTestHelpers.create_profile()
 
         # Calculate the HMAC authentication headers we need to make an
         # authenticated request.
@@ -159,16 +142,7 @@ class ProfileTestCase(django.test.TestCase):
             matching_names.add(name)
 
         for name in matching_names:
-            profile = Profile()
-            profile.global_id        = utils.calc_unique_global_id()
-            profile.account_secret   = utils.random_string()
-            profile.name             = name
-            profile.name_visible     = True
-            profile.location         = utils.random_string()
-            profile.location_visible = False
-            profile.picture_id       = utils.random_string()
-            profile.picture_visible  = True
-            profile.save()
+            profile = apiTestHelpers.create_profile(name=name)
 
         # Create another 20 dummy profiles, each with a random name starting
         # with the string "no_match_".  These are the profiles we don't want
@@ -186,16 +160,7 @@ class ProfileTestCase(django.test.TestCase):
             non_matching_names.add(name)
 
         for name in non_matching_names:
-            profile = Profile()
-            profile.global_id        = utils.calc_unique_global_id()
-            profile.account_secret   = utils.random_string()
-            profile.name             = name
-            profile.name_visible     = True
-            profile.location         = utils.random_string()
-            profile.location_visible = False
-            profile.picture_id       = utils.random_string()
-            profile.picture_visible  = True
-            profile.save()
+            profile = apiTestHelpers.create_profile(name=name)
 
         # Ask the "GET api/profiles" endpoint to search for profiles starting
         # with the string "match_".
@@ -230,16 +195,7 @@ class ProfileTestCase(django.test.TestCase):
         """
         # Create a dummy profile for testing.
 
-        profile = Profile()
-        profile.global_id        = utils.calc_unique_global_id()
-        profile.account_secret   = utils.random_string()
-        profile.name             = utils.random_string()
-        profile.name_visible     = True
-        profile.location         = utils.random_string()
-        profile.location_visible = False
-        profile.picture_id       = utils.random_string()
-        profile.picture_visible  = True
-        profile.save()
+        profile = apiTestHelpers.create_profile()
 
         # Calculate a different account secret so the HMAC headers will be
         # invalid.
@@ -335,19 +291,7 @@ class ProfileTestCase(django.test.TestCase):
         """
         # Create a dummy profile for testing.
 
-        global_id      = utils.calc_unique_global_id()
-        account_secret = utils.random_string()
-
-        profile = Profile()
-        profile.global_id        = global_id
-        profile.account_secret   = account_secret
-        profile.name             = utils.random_string()
-        profile.name_visible     = True
-        profile.location         = utils.random_string()
-        profile.location_visible = False
-        profile.picture_id       = utils.random_string()
-        profile.picture_visible  = True
-        profile.save()
+        profile = apiTestHelpers.create_profile()
 
         # Calculate some new data to store into the profile.
 
@@ -372,15 +316,15 @@ class ProfileTestCase(django.test.TestCase):
 
         headers = utils.calc_hmac_headers(
             method="PUT",
-            url="/api/profile/" + global_id,
+            url="/api/profile/" + profile.global_id,
             body=request,
-            account_secret=account_secret
+            account_secret=profile.account_secret
         )
 
         # Ask the "PUT api/profile/<GLOBAL_ID>" endpoint to update the user's
         # profile, using the HMAC authentication headers.
 
-        response = self.client.put("/api/profile/" + global_id,
+        response = self.client.put("/api/profile/" + profile.global_id,
                                    request,
                                    content_type="application/json",
                                    **headers)
@@ -389,10 +333,8 @@ class ProfileTestCase(django.test.TestCase):
 
         # Check that the profile has been updated.
 
-        profile = Profile.objects.get(global_id=global_id)
+        profile = Profile.objects.get(global_id=profile.global_id)
 
-        self.assertEqual(profile.global_id,        global_id)
-        self.assertEqual(profile.account_secret,   account_secret)
         self.assertEqual(profile.name,             new_name)
         self.assertEqual(profile.name_visible,     new_name_visible)
         self.assertEqual(profile.location,         new_location)
@@ -407,34 +349,22 @@ class ProfileTestCase(django.test.TestCase):
         """
         # Create a dummy profile for testing.
 
-        global_id      = utils.calc_unique_global_id()
-        account_secret = utils.random_string()
-
-        profile = Profile()
-        profile.global_id        = global_id
-        profile.account_secret   = account_secret
-        profile.name             = utils.random_string()
-        profile.name_visible     = True
-        profile.location         = utils.random_string()
-        profile.location_visible = False
-        profile.picture_id       = utils.random_string()
-        profile.picture_visible  = True
-        profile.save()
+        profile = apiTestHelpers.create_profile()
 
         # Calculate the HMAC authentication headers we need to make an
         # authenticated request.
 
         headers = utils.calc_hmac_headers(
             method="DELETE",
-            url="/api/profile/" + global_id,
+            url="/api/profile/" + profile.global_id,
             body="",
-            account_secret=account_secret
+            account_secret=profile.account_secret
         )
 
         # Ask the "DELETE api/profile/<GLOBAL_ID>" endpoint to delete the
         # user's profile, using the HMAC authentication headers.
 
-        response = self.client.delete("/api/profile/" + global_id,
+        response = self.client.delete("/api/profile/" + profile.global_id,
                                       **headers)
 
         self.assertEqual(response.status_code, 200)
@@ -442,7 +372,7 @@ class ProfileTestCase(django.test.TestCase):
         # Check that the profile has been deleted.
 
         try:
-            profile = Profile.objects.get(global_id=global_id)
+            profile = Profile.objects.get(global_id=profile.global_id)
         except Profile.DoesNotExist:
             profile = None
 

@@ -10,6 +10,7 @@ import simplejson as json
 
 from mmServer.shared.models import *
 from mmServer.shared.lib    import utils
+from mmServer.api.tests     import apiTestHelpers
 
 #############################################################################
 
@@ -21,15 +22,7 @@ class PictureTestCase(django.test.TestCase):
         """
         # Create a dummy picture for testing.
 
-        picture_data = utils.random_string(min_length=10000, max_length=20000)
-
-        picture = Picture()
-        picture.picture_id       = utils.calc_unique_picture_id()
-        picture.deleted          = False
-        picture.account_secret   = utils.random_string()
-        picture.picture_filename = utils.random_string() + ".png"
-        picture.picture_data     = base64.b64encode(utils.random_string())
-        picture.save()
+        picture = apiTestHelpers.create_picture()
 
         # Ask the "GET api/picture/<PICTURE_ID>" endpoint to return the
         # picture.
@@ -109,14 +102,7 @@ class PictureTestCase(django.test.TestCase):
         """
         # Create a dummy picture, for testing.
 
-        picture_data = utils.random_string(min_length=10000, max_length=20000)
-
-        picture = Picture()
-        picture.picture_id       = utils.calc_unique_picture_id()
-        picture.account_secret   = utils.random_string()
-        picture.picture_filename = utils.random_string() + ".png"
-        picture.picture_data     = base64.b64encode(utils.random_string())
-        picture.save()
+        picture = apiTestHelpers.create_picture()
 
         # Calculate the updated picture's details.
 
@@ -164,15 +150,7 @@ class PictureTestCase(django.test.TestCase):
         """
         # Create a dummy picture, for testing.
 
-        picture_id   = utils.calc_unique_picture_id()
-        picture_data = utils.random_string(min_length=10000, max_length=20000)
-
-        picture = Picture()
-        picture.picture_id       = picture_id
-        picture.account_secret   = utils.random_string()
-        picture.picture_filename = utils.random_string() + ".png"
-        picture.picture_data     = base64.b64encode(utils.random_string())
-        picture.save()
+        picture = apiTestHelpers.create_picture()
 
         # Calculate the HMAC authentication headers we need to make an
         # authenticated request.
@@ -195,7 +173,7 @@ class PictureTestCase(django.test.TestCase):
         # Check that the picture has been marked as deleted.
 
         try:
-            picture = Picture.objects.get(picture_id=picture_id)
+            picture = Picture.objects.get(picture_id=picture.picture_id)
         except Picture.DoesNotExist:
             picture = None
 

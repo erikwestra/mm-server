@@ -17,7 +17,7 @@ import simplejson as json
 
 from mmServer.shared.models import *
 from mmServer.shared.lib    import rippleInterface, encryption
-from mmServer.shared.lib    import utils, dbHelpers
+from mmServer.shared.lib    import utils, dbHelpers, messageHandler
 
 #############################################################################
 
@@ -90,48 +90,10 @@ def changes_GET(request):
     if anchor == None:
         return HttpResponseBadRequest("Invalid anchor")
 
-    # See if we have any pending messages.  If so, ask the Ripple network for
-    # the current status of these messages, and finalize any that have either
-    # failed or been accepted into the Ripple ledger.
+    # Check any pending messages.  If a pending message changes status, the
+    # message will be included in the list of changes.
 
-    for msg in Message.objects.filter(status=Message.STATUS_PENDING):
-        response = rippleInterface.request("tx", transaction=msg.hash,
-                                                 binary=False)
-        if response == None:
-            continue
-
-        if response['status'] != "success":
-            logger.warn("Ripple server returned error: " + repr(response))
-            continue
-
-        if response['result'].get("validated", False):
-            # This message has been validated -> finalize it.
-
-            trans_result = response['result']['meta']['TransactionResult']
-            if trans_result == "tesSUCCESS":
-                msg.status = Message.STATUS_SENT
-                msg.error  = None
-            else:
-                msg.status  = Message.STATUS_FAILED
-                final.error = trans_result
-            msg.save()
-
-    # Look for any unread messages sent to the current user.  We mark these as
-    # "read", since the user is about to receive notification about these
-    # messages.
-
-#    query = Message.objects.filter(recipient_global_id=my_global_id)
-#    if "Message" in anchor:
-#        query = query.filter(update_id__gt=anchor['Message'])
-#
-#    messages_to_update = []
-#    for msg in query:
-#        if msg.status == Message.STATUS_SENT:
-#            messages_to_update.append(msg)
-#
-#    for msg in messages_to_update:
-#        msg.status = Message.STATUS_READ
-#        msg.save()
+    messageHandler.check_pending_messages()
 
     # Get ready to start collecting updates.
 
