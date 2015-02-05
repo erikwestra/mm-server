@@ -73,8 +73,6 @@ def update_conversation(conversation):
             num_unread_1
             num_unread_2
     """
-    logger.debug("updating conversation")
-
     conversation.num_unread_1 = 0
     conversation.num_unread_2 = 0
 

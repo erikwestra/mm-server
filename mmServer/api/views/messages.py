@@ -90,21 +90,6 @@ def messages_GET(request):
 
     with dbHelpers.exclusive_access(Message):
 
-        # Go through the list of messages we want to download, and mark any
-        # messages sent to the current user as "read".  Note that this will
-        # alter the update_id for these messages, so we have to do this before
-        # we collect the final list of messages to return to the caller.
-
-        messages_to_update = []
-        for msg in Message.objects.filter(query):
-            messages_to_update.append(msg)
-
-        for msg in messages_to_update:
-            if ((msg.recipient_global_id == my_global_id) and
-                (msg.status == Message.STATUS_SENT)):
-                msg.status = Message.STATUS_READ
-                msg.save()
-
         # Collect the list of messages to return.
 
         messages = []
