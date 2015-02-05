@@ -251,6 +251,9 @@ def message_PUT(request):
     except Message.DoesNotExist:
         return HttpResponseNotFound()
 
+    logger.debug("updating message, processed = " + repr(processed) +
+                 ", read = " + repr(read))
+
     # Check that the recipient is the one trying to update the message.
 
     try:
