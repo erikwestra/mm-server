@@ -66,13 +66,15 @@ def update_conversation(conversation):
     """ Update a conversation to reflect the current state of its messages.
 
         We update the following fields in the Conversation record to reflect
-        the current set of messages assocaited with that conversation:
+        the current set of messages associated with that conversation:
 
             last_message
             last_timestamp
             num_unread_1
             num_unread_2
     """
+    logger.debug("updating conversation")
+
     conversation.num_unread_1 = 0
     conversation.num_unread_2 = 0
 
