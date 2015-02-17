@@ -56,7 +56,8 @@ def create_conversation(my_global_id, their_global_id,
     conversation.encryption_key = encryption.generate_random_key()
     conversation.hidden_1       = hidden_1
     conversation.hidden_2       = hidden_2
-    conversation.last_message   = utils.random_string()
+    conversation.last_message_1 = utils.random_string()
+    conversation.last_message_2 = utils.random_string()
     conversation.last_timestamp = timezone.now()
     conversation.num_unread_1   = num_unread_1
     conversation.num_unread_2   = num_unread_2
@@ -141,8 +142,4 @@ def install_mock_ripple_interface():
     mmServer.api.views.message.rippleInterface.request = rippleMock
 
     return rippleMock
-
-#############################################################################
-
-# ...more to come!
 

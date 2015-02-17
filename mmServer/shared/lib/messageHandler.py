@@ -79,7 +79,12 @@ def update_conversation(conversation):
     for message in Message.objects.filter(conversation=conversation):
         if ((conversation.last_timestamp == None) or
             (message.timestamp > conversation.last_timestamp)):
-            conversation.last_message   = message.text
+            if conversation.global_id_1 == message.sender_global_id:
+                conversation.last_message_1 = message.sender_text
+                conversation.last_message_2 = message.recipient_text
+            else:
+                conversation.last_message_1 = message.recipient_text
+                conversation.last_message_2 = message.sender_text
             conversation.last_timestamp = message.timestamp
 
         if message.status == Message.STATUS_SENT:

@@ -69,7 +69,7 @@ def conversations_GET(request, global_id):
                               'their_global_id' : conversation.global_id_2,
                               'encryption_key'  : conversation.encryption_key,
                               'hidden'          : conversation.hidden_1,
-                              'last_message'    : conversation.last_message,
+                              'last_message'    : conversation.last_message_1,
                               'last_timestamp'  : timestamp,
                               'num_unread'      : conversation.num_unread_1})
 
@@ -84,7 +84,7 @@ def conversations_GET(request, global_id):
                               'their_global_id' : conversation.global_id_1,
                               'encryption_key'  : conversation.encryption_key,
                               'hidden'          : conversation.hidden_2,
-                              'last_message'    : conversation.last_message,
+                              'last_message'    : conversation.last_message_2,
                               'last_timestamp'  : timestamp,
                               'num_unread'      : conversation.num_unread_2})
 

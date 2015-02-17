@@ -122,10 +122,17 @@ following fields:
 > 
 > > Has the second user hidden this conversation?
 > 
-> `last_message`
+> `last_message_1`
 > 
-> > The text of the last message sent for this conversation.  If there are no
-> > messages in this conversation, this will be set to a `null` value.
+> > The text of the last message sent for this conversation, as shown to the
+> > first user.  If there are no messages in this conversation, this will be
+> > set to a `null` value.
+> 
+> `last_message_2`
+> 
+> > The text of the last message sent for this conversation, as shown to the
+> > second user.  If there are no messages in this conversation, this will be
+> > set to a `null` value.
 > 
 > `last_timestamp`
 > 
@@ -152,7 +159,7 @@ API will return the following set of fields back to the caller:
 >     global_id_1    => my_global_id
 >     global_id_2    => their_global_id
 >     hidden_1       => hidden
->     last_message   => last_message
+>     last_message_1 => last_message
 >     last_timestamp => last_timestamp
 >     num_unread_1   => num_unread
 
@@ -162,7 +169,7 @@ will return the following set of fields back to the caller:
 >     global_id_2    => my_global_id
 >     global_id_1    => their_global_id
 >     hidden_2       => hidden
->     last_message   => last_message
+>     last_message_2 => last_message
 >     last_timestamp => last_timestamp
 >     num_unread_2   => num_unread
 
@@ -174,6 +181,12 @@ of view, while still having a single global conversation record for both users.
 
 A **message** is the unit of communication between users.  Messages can be
 freeform text, or they can include **actions** that need to be performed.
+Note that there are two versions of the text for each message: the version to
+show to the sender of the message, and the version to show to the message
+recipient.  For freeform text messages, both versions will be identical, but
+for messages with actions the text of the message will describe the action from
+both the sender's and the recipient's point of view.
+
 Within the API, a message consists of the following information:
 
 > `conversation`
@@ -205,9 +218,13 @@ Within the API, a message consists of the following information:
 > 
 > > The Ripple account ID of the user who received this message.
 > 
-> `text`
+> `sender_text`
 > 
-> > The text of the message.
+> > The text of the message, as shown to the sender of the message.
+> 
+> `recipient_text`
+> 
+> > The text of the message, as shown to the recipient of the message.
 > 
 > `action`
 > 
@@ -221,6 +238,10 @@ Within the API, a message consists of the following information:
 > > > `REQUEST_XRP`
 > > > 
 > > > > Request some XRP from the other user.
+> > > 
+> > > `DECLINE_REQUEST_XRP`
+> > > 
+> > > > Decline a request to send some XRP to the other user.
 > > 
 > > If the message does not have an action associated with it, the `action`
 > > field will be set to a `null` value.
@@ -242,6 +263,13 @@ Within the API, a message consists of the following information:
 > > > > `amount`
 > > > > 
 > > > > > The amount to request, as an integer number of drops.
+> > 
+> > * For the `DECLINE_REQUEST_XRP` action:
+> > 
+> > > > `amount`
+> > > > 
+> > > > > The amount that the user declined to send, as an integer number of
+> > > > > drops.
 > > 
 > > If the message does not have any action parameters, the `action_params`
 > > field will be set to a `null` value.
@@ -481,6 +509,21 @@ code of 403 (Forbidden).
 
 Retrieve a profile picture with the given ID.
 
+The following query-string parameters can be supplied if you wish:
+
+> `max_width`
+> 
+> > The maximum width of the image, in pixels.
+> 
+> `max_height`
+> 
+> > The maximum height of the image, in pixels.
+
+If one or both of these parameters are supplied, the image will be scaled to
+match the supplied maximum width or height, while maintaining the aspect ratio
+of the original image.  If neither parameter is supplied, the image will be
+returned unscaled.
+
 If there is a picture with the given ID, the picture's image data will be
 returned.  If there is no picture with that ID, the API endpoint will return an
 HTTP response code of 404 (not found).
@@ -712,8 +755,10 @@ containing the following JSON-format object:
 >     }
 
 Each entry in the `messages` list is an object with the details of the message,
-as described in the Messages section, above.  The `error` field will only be
-present if the message failed to be sent.
+as described in the Messages section, above.  The message text will be selected
+based on whether the current user is the sender or the receipient of the
+message.  The `error` field will only be present if the message failed to be
+sent.
 
 If the `their_global_id` parameter was supplied, only messages between the two
 users will be returned.  Otherwise, all messages sent to or received by the
@@ -735,16 +780,23 @@ object:
 >           recipient_global_id: "...",
 >           sender_account_id: "...",
 >           recipient_account_id: "...",
->           text: "...",
+>           sender_text: "...",
+>           recipient_text: "...",
 >           action: "...",
 >           action_params: "...",
 >           amount_in_drops: 100}
 >     }
 
-**_Note_**:
+**'_Notes_'**:
  
 > * The sending user must have an existing profile for this API endpoint to
 >   work.
+> <br/><br/>
+> * Two versions of the message text must be supplied: one to be seen by the
+>   message sender, and the other to be seen by the message recipient.  For
+>   freeform messages, both versions should be identical, while for a message
+>   that has an action associated with it, the message text should be
+>   personalised to describe the action from that user's point of view.
 > <br/><br/>
 > * The `action` and `action_params` fields are only required if the message
 >   has an action associated with it.

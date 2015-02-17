@@ -796,14 +796,16 @@ class ChangesTestCase(django.test.TestCase):
 
         # Create the body of our request.
 
-        message_text = utils.random_string()
+        sender_text    = utils.random_string()
+        recipient_text = utils.random_string()
 
         request = json.dumps(
                         {'sender_global_id'     : profile_1.global_id,
                          'recipient_global_id'  : profile_2.global_id,
                          'sender_account_id'    : sender_account_id,
                          'recipient_account_id' : recipient_account_id,
-                         'text'                 : message_text,
+                         'sender_text'          : sender_text,
+                         'recipient_text'       : recipient_text,
                         })
 
         # Calculate the HMAC authentication headers we need to make an
@@ -896,7 +898,8 @@ class ChangesTestCase(django.test.TestCase):
         message.recipient_global_id  = profile_2.global_id
         message.sender_account_id    = sender_account_id
         message.recipient_account_id = recipient_account_id
-        message.text                 = "SEND 1 XRP"
+        message.sender_text          = "SEND 1 XRP"
+        message.recipient_text       = "RECEIVE 1 XRP"
         message.status               = Message.STATUS_SENT
         message.action               = "SEND_XRP"
         message.action_params        = json.dumps({'amount' : 1000000})

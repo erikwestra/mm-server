@@ -45,14 +45,16 @@ class MessageTestCase(django.test.TestCase):
 
         # Create the body of our request.
 
-        message_text = utils.random_string()
+        sender_text    = utils.random_string()
+        recipient_text = utils.random_string()
 
         request = json.dumps(
                         {'sender_global_id'     : sender_profile.global_id,
                          'recipient_global_id'  : recipient_profile.global_id,
                          'sender_account_id'    : sender_account_id,
                          'recipient_account_id' : recipient_account_id,
-                         'text'                 : message_text,
+                         'sender_text'          : sender_text,
+                         'recipient_text'       : recipient_text,
                         })
 
         # Calculate the HMAC authentication headers we need to make an
@@ -99,7 +101,8 @@ class MessageTestCase(django.test.TestCase):
                          recipient_profile.global_id)
         self.assertEqual(message.sender_account_id, sender_account_id)
         self.assertEqual(message.recipient_account_id, recipient_account_id)
-        self.assertEqual(message.text, message_text)
+        self.assertEqual(message.sender_text, sender_text)
+        self.assertEqual(message.recipient_text, recipient_text)
         self.assertIsNone(message.action)
         self.assertIsNone(message.action_params)
         self.assertEqual(message.amount_in_drops, 1)
@@ -129,14 +132,16 @@ class MessageTestCase(django.test.TestCase):
 
         # Create the body of our request.
 
-        message_text = utils.random_string()
+        sender_text    = utils.random_string()
+        recipient_text = utils.random_string()
 
         request = json.dumps(
                         {'sender_global_id'     : sender_profile.global_id,
                          'recipient_global_id'  : recipient_profile.global_id,
                          'sender_account_id'    : sender_account_id,
                          'recipient_account_id' : recipient_account_id,
-                         'text'                 : message_text,
+                         'sender_text'          : sender_text,
+                         'recipient_text'       : recipient_text,
                          'action'               : "SEND_XRP",
                          'action_params'        : json.dumps({'amount' : 10}),
                          'amount_in_drops'      : 10,
@@ -186,7 +191,8 @@ class MessageTestCase(django.test.TestCase):
                          recipient_profile.global_id)
         self.assertEqual(message.sender_account_id, sender_account_id)
         self.assertEqual(message.recipient_account_id, recipient_account_id)
-        self.assertEqual(message.text, message_text)
+        self.assertEqual(message.sender_text, sender_text)
+        self.assertEqual(message.recipient_text, recipient_text)
         self.assertEqual(message.action, "SEND_XRP")
         self.assertEqual(message.action_params, json.dumps({'amount' : 10}))
         self.assertEqual(message.amount_in_drops, 10)
@@ -224,7 +230,8 @@ class MessageTestCase(django.test.TestCase):
         message.recipient_global_id  = recipient_profile.global_id
         message.sender_account_id    = sender_account_id
         message.recipient_account_id = recipient_account_id
-        message.text                 = "SEND 1 XRP"
+        message.sender_text          = "SEND 1 XRP"
+        message.recipient_text       = "RECEIVED 1 XRP"
         message.status               = Message.STATUS_SENT
         message.action               = "SEND_XRP"
         message.action_params        = json.dumps({'amount' : 1000000})
@@ -303,28 +310,32 @@ class MessageTestCase(django.test.TestCase):
                      'sender_account'    : my_account_id,
                      'recipient_id'      : other_profile_1.global_id,
                      'recipient_account' : other_account_id_1,
-                     'text'              : utils.random_string()},
+                     'sender_text'       : utils.random_string(),
+                     'recipient_text'    : utils.random_string()},
 
                     {'conversation'      : conversation_1,
                      'sender_id'         : other_profile_1.global_id,
                      'sender_account'    : other_account_id_1,
                      'recipient_id'      : my_profile.global_id,
                      'recipient_account' : my_account_id,
-                     'text'              : utils.random_string()},
+                     'sender_text'       : utils.random_string(),
+                     'recipient_text'    : utils.random_string()},
 
                     {'conversation'      : conversation_2,
                      'sender_id'         : my_profile.global_id,
                      'sender_account'    : my_account_id,
                      'recipient_id'      : other_profile_2.global_id,
                      'recipient_account' : other_account_id_2,
-                     'text'              : utils.random_string()},
+                     'sender_text'       : utils.random_string(),
+                     'recipient_text'    : utils.random_string()},
 
                     {'conversation'      : conversation_2,
                      'sender_id'         : other_profile_2.global_id,
                      'sender_account'    : other_account_id_2,
                      'recipient_id'      : my_profile.global_id,
                      'recipient_account' : my_account_id,
-                     'text'              : utils.random_string()}]
+                     'sender_text'       : utils.random_string(),
+                     'recipient_text'    : utils.random_string()}]
 
         for msg in messages:
             message = Message()
@@ -335,7 +346,8 @@ class MessageTestCase(django.test.TestCase):
             message.recipient_global_id  = msg['recipient_id']
             message.sender_account_id    = msg['sender_account']
             message.recipient_account_id = msg['recipient_account']
-            message.text                 = msg['text']
+            message.sender_text          = msg['sender_text']
+            message.recipient_text       = msg['recipient_text']
             message.status               = Message.STATUS_SENT
             message.action               = None
             message.action_params        = json.dumps({})
@@ -371,11 +383,15 @@ class MessageTestCase(django.test.TestCase):
         # Check that the list of messages was correctly returned.
 
         self.assertItemsEqual(data.keys(), ["messages"])
-        self.assertEqual(len(data['messages']), 4)
-        self.assertEqual(data['messages'][0]['text'], messages[0]['text'])
-        self.assertEqual(data['messages'][1]['text'], messages[1]['text'])
-        self.assertEqual(data['messages'][2]['text'], messages[2]['text'])
-        self.assertEqual(data['messages'][3]['text'], messages[3]['text'])
+        self.assertEqual(len(data['messages']), len(messages))
+        for i in range(len(messages)):
+            orig_msg     = messages[i]
+            returned_msg = data['messages'][i]
+
+            self.assertEqual(orig_msg['sender_text'],
+                             returned_msg['sender_text'])
+            self.assertEqual(orig_msg['recipient_text'],
+                             returned_msg['recipient_text'])
 
     # -----------------------------------------------------------------------
 
@@ -400,11 +416,17 @@ class MessageTestCase(django.test.TestCase):
 
         # Create some test messages.
 
-        message_1 = utils.random_string()
-        message_2 = utils.random_string()
-        message_3 = utils.random_string()
+        sender_text_1 = utils.random_string()
+        sender_text_2 = utils.random_string()
+        sender_text_3 = utils.random_string()
 
-        for message_text in [message_1, message_2, message_3]:
+        recipient_text_1 = utils.random_string()
+        recipient_text_2 = utils.random_string()
+        recipient_text_3 = utils.random_string()
+
+        for sender_text,recipient_text in [(sender_text_1, recipient_text_1),
+                                           (sender_text_2, recipient_text_2),
+                                           (sender_text_3, recipient_text_3)]:
             message = Message()
             message.conversation         = conversation
             message.hash                 = utils.random_string()
@@ -413,7 +435,8 @@ class MessageTestCase(django.test.TestCase):
             message.recipient_global_id  = recipient_profile.global_id
             message.sender_account_id    = sender_account_id
             message.recipient_account_id = recipient_account_id
-            message.text                 = message_text
+            message.sender_text          = sender_text
+            message.recipient_text       = recipient_text
             message.status               = Message.STATUS_SENT
             message.action               = "SEND_XRP"
             message.action_params        = json.dumps({'amount' : 10})
@@ -451,9 +474,13 @@ class MessageTestCase(django.test.TestCase):
 
         self.assertItemsEqual(data.keys(), ["messages"])
         self.assertEqual(len(data['messages']), 3)
-        self.assertEqual(data['messages'][0]['text'], message_1)
-        self.assertEqual(data['messages'][1]['text'], message_2)
-        self.assertEqual(data['messages'][2]['text'], message_3)
+        msgs = data['messages']
+        self.assertEqual(msgs[0]['sender_text'], sender_text_1)
+        self.assertEqual(msgs[1]['sender_text'], sender_text_2)
+        self.assertEqual(msgs[2]['sender_text'], sender_text_3)
+        self.assertEqual(msgs[0]['recipient_text'], recipient_text_1)
+        self.assertEqual(msgs[1]['recipient_text'], recipient_text_2)
+        self.assertEqual(msgs[2]['recipient_text'], recipient_text_3)
 
     # -----------------------------------------------------------------------
 
@@ -492,7 +519,8 @@ class MessageTestCase(django.test.TestCase):
         message.recipient_global_id  = recipient_profile.global_id
         message.sender_account_id    = sender_account_id
         message.recipient_account_id = recipient_account_id
-        message.text                 = utils.random_string()
+        message.sender_text          = utils.random_string()
+        message.recipient_text       = utils.random_string()
         message.status               = Message.STATUS_PENDING
         message.error                = None
         message.save()

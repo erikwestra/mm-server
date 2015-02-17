@@ -41,7 +41,7 @@ import_setting("DEBUG_LOGGING_DESTINATION",              "file")
 # NOTE: KEEP_NONCE_VALUES_FOR is measured in days.  If this has the value
 # "none", the None values are kept forever.
 import_setting("KEEP_NONCE_VALUES_FOR",                  None)
-import_setting("RIPPLED_SERVER_URL",                     None)
+import_setting("RIPPLED_SERVER_URLS",                    [])
 
 #############################################################################
 

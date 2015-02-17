@@ -97,20 +97,23 @@ def messages_GET(request):
             timestamp = utils.datetime_to_unix_timestamp(msg.timestamp)
             status    = Message.STATUS_MAP[msg.status]
 
-            messages.append({'hash'                 : msg.hash,
-                             'timestamp'            : timestamp,
-                             'sender_global_id'     : msg.sender_global_id,
-                             'recipient_global_id'  : msg.recipient_global_id,
-                             'sender_account_id'    : msg.sender_account_id,
-                             'recipient_account_id' : msg.recipient_account_id,
-                             'text'                 : msg.text,
-                             'action'               : msg.action,
-                             'action_params'        : msg.action_params,
-                             'action_processed'     : msg.action_processed,
-                             'amount_in_drops'      : msg.amount_in_drops,
-                             'status'               : status})
+            message = {'hash'                 : msg.hash,
+                       'timestamp'            : timestamp,
+                       'sender_global_id'     : msg.sender_global_id,
+                       'recipient_global_id'  : msg.recipient_global_id,
+                       'sender_account_id'    : msg.sender_account_id,
+                       'recipient_account_id' : msg.recipient_account_id,
+                       'sender_text'          : msg.sender_text,
+                       'recipient_text'       : msg.recipient_text,
+                       'action'               : msg.action,
+                       'action_params'        : msg.action_params,
+                       'action_processed'     : msg.action_processed,
+                       'amount_in_drops'      : msg.amount_in_drops,
+                       'status'               : status}
             if msg.error:
-                messages[-1]['error'] = msg.error
+                message['error'] = msg.error
+
+            messages.append(message)
 
     # Finally, return the results back to the caller.
 

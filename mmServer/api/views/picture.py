@@ -4,7 +4,10 @@
     application.
 """
 import base64
+import cStringIO
 import logging
+import io
+import math
 import os.path
 import uuid
 
@@ -12,6 +15,8 @@ from django.http                  import *
 from django.views.decorators.csrf import csrf_exempt
 
 import simplejson as json
+
+from PIL import Image
 
 from mmServer.shared.models import *
 from mmServer.shared.lib    import utils
@@ -53,6 +58,22 @@ def picture_GET(request, picture_id):
 
         This is used to retrieve an uploaded picture.
     """
+    if "max_width" in request.GET:
+        try:
+            max_width = int(request.GET['max_width'])
+        except ValueError:
+            return HttpResponseBadRequest()
+    else:
+        max_width = None
+
+    if "max_height" in request.GET:
+        try:
+            max_height = int(request.GET['max_height'])
+        except ValueError:
+            return HttpResponseBadRequest()
+    else:
+        max_height = None
+
     try:
         picture = Picture.objects.get(picture_id=picture_id)
     except Picture.DoesNotExist:
@@ -67,6 +88,40 @@ def picture_GET(request, picture_id):
         image_data = base64.b64decode(picture.picture_data)
     except TypeError:
         return HttpResponseBadRequest() # ???
+
+    if (max_width != None) or (max_height != None):
+        # Scale the image to fit within the given maximum dimension(s).
+        image = Image.open(io.BytesIO(image_data))
+        width,height = image.size
+
+        if max_width != None and max_height != None:
+            if width > height:
+                if max_width != None and width > max_width:
+                    scale_factor = float(max_width) / float(width)
+                    height       = int(math.ceil(height * scale_factor))
+                    width        = max_width
+            else:
+                if max_height != None and height > max_height:
+                    scale_factor = float(max_height) / float(height)
+                    width        = int(math.ceil(width * scale_factor))
+                    height       = max_height
+        elif max_width != None:
+            if width > max_width:
+                scale_factor = float(max_width) / float(width)
+                height       = int(math.ceil(height * scale_factor))
+                width        = max_width
+        elif max_height != None:
+            if height > max_height:
+                scale_factor = float(max_height) / float(height)
+                width        = int(math.ceil(width * scale_factor))
+                height       = max_height
+
+        scaled_image = image.resize((width, height), Image.LANCZOS)
+
+        buffer = cStringIO.StringIO()
+        scaled_image.save(buffer, format=imageType)
+        image_data = buffer.getvalue()
+        buffer.close()
 
     return HttpResponse(image_data,
                         mimetype="image/" + imageType)

@@ -169,12 +169,13 @@ def changes_GET(request):
                 data['their_global_id'] = conversation.global_id_2
                 data['hidden']          = conversation.hidden_1
                 data['num_unread']      = conversation.num_unread_1
+                data['last_message']    = conversation.last_message_1
             else:
                 data['my_global_id']    = conversation.global_id_2
                 data['their_global_id'] = conversation.global_id_1
                 data['hidden']          = conversation.hidden_2
                 data['num_unread']      = conversation.num_unread_2
-            data['last_message']   = conversation.last_message
+                data['last_message']    = conversation.last_message_2
             data['last_timestamp'] = timestamp
 
             changes.append({'type' : "conversation",
@@ -198,7 +199,8 @@ def changes_GET(request):
             msg_data['recipient_global_id'] = message.recipient_global_id
             msg_data['sender_account_id']   = message.sender_account_id
             msg_data['recipient_account_id'] = message.recipient_account_id
-            msg_data['text']                = message.text
+            msg_data['sender_text']         = message.sender_text
+            msg_data['recipient_text']      = message.recipient_text
             msg_data['action']              = message.action
             msg_data['action_params']       = message.action_params
             msg_data['action_processed']    = message.action_processed

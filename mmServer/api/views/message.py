@@ -76,10 +76,15 @@ def message_POST(request):
     else:
         recipient_account_id = data['recipient_account_id']
 
-    if "text" not in data:
-        return HttpResponseBadRequest("Missing 'text' field.")
+    if "sender_text" not in data:
+        return HttpResponseBadRequest("Missing 'sender_text' field.")
     else:
-        text = data['text']
+        sender_text = data['sender_text']
+
+    if "recipient_text" not in data:
+        return HttpResponseBadRequest("Missing 'recipient_text' field.")
+    else:
+        recipient_text = data['recipient_text']
 
     if "action" in data:
         action = data['action']
@@ -126,7 +131,8 @@ def message_POST(request):
         conversation.encryption_key = encryption.generate_random_key()
         conversation.hidden_1       = False
         conversation.hidden_2       = False
-        conversation.last_message   = None
+        conversation.last_message_1 = None
+        conversation.last_message_2 = None
         conversation.last_timestamp = None
         conversation.num_unread_1   = 0
         conversation.num_unread_2   = 0
@@ -135,7 +141,7 @@ def message_POST(request):
     # Encrypt the message using the conversation's encryption key.
 
     encrypted_message = encryption.encrypt(conversation.encryption_key,
-                                           text)
+                                           recipient_text)
 
     # Create the Ripple transaction to be sent.
 
@@ -199,7 +205,8 @@ def message_POST(request):
     message.recipient_global_id  = recipient_global_id
     message.sender_account_id    = sender_account_id
     message.recipient_account_id = recipient_account_id
-    message.text                 = text
+    message.sender_text          = sender_text
+    message.recipient_text       = recipient_text
     message.action               = action
     message.action_params        = action_params
     message.status               = Message.STATUS_PENDING

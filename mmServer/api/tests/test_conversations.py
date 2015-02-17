@@ -126,7 +126,7 @@ class ConversationTestCase(django.test.TestCase):
                                                           num_unread_1=2)
 
         encryption_key = conversation.encryption_key
-        last_message   = conversation.last_message
+        last_message   = conversation.last_message_1
         last_timestamp = conversation.last_timestamp
         last_secs      = utils.datetime_to_unix_timestamp(last_timestamp)
 
@@ -224,7 +224,8 @@ class ConversationTestCase(django.test.TestCase):
         self.assertNotIn(conversation.encryption_key, [None, ""])
         self.assertEqual(conversation.hidden_1,       False)
         self.assertEqual(conversation.hidden_2,       False)
-        self.assertEqual(conversation.last_message,   None)
+        self.assertEqual(conversation.last_message_1, None)
+        self.assertEqual(conversation.last_message_2, None)
         self.assertEqual(conversation.last_timestamp, None)
         self.assertEqual(conversation.num_unread_1,   0)
         self.assertEqual(conversation.num_unread_2,   0)
@@ -309,7 +310,8 @@ class ConversationTestCase(django.test.TestCase):
             apiTestHelpers.create_conversation(my_profile.global_id,
                                                their_profile.global_id)
 
-        cur_last_message   = conversation.last_message
+        cur_last_message_1 = conversation.last_message_1
+        cur_last_message_2 = conversation.last_message_2
         cur_last_timestamp = conversation.last_timestamp
         cur_num_unread_1   = conversation.num_unread_1
         cur_num_unread_2   = conversation.num_unread_2
@@ -329,7 +331,8 @@ class ConversationTestCase(django.test.TestCase):
         message.recipient_global_id  = their_profile.global_id
         message.sender_account_id    = my_account_id
         message.recipient_account_id = their_account_id
-        message.text                 = utils.random_string()
+        message.sender_text          = utils.random_string()
+        message.recipient_text       = utils.random_string()
         message.status               = Message.STATUS_PENDING
         message.error                = None
         message.save()
@@ -366,7 +369,7 @@ class ConversationTestCase(django.test.TestCase):
         conversation = Conversation.objects.get(id=conversation.id)
 
         self.assertNotEqual(conversation.last_timestamp, cur_last_timestamp)
-        self.assertEqual(conversation.last_message, message.text)
+        self.assertEqual(conversation.last_message_1, message.sender_text)
         self.assertEqual(conversation.num_unread_1, cur_num_unread_1)
         self.assertEqual(conversation.num_unread_2, cur_num_unread_2 + 1)
 
@@ -395,7 +398,8 @@ class ConversationTestCase(django.test.TestCase):
                                                num_unread_1=0,
                                                num_unread_2=1)
 
-        cur_last_message   = conversation.last_message
+        cur_last_message_1 = conversation.last_message_1
+        cur_last_message_2 = conversation.last_message_2
         cur_last_timestamp = conversation.last_timestamp
         cur_num_unread_1   = conversation.num_unread_1
         cur_num_unread_2   = conversation.num_unread_2
@@ -415,7 +419,8 @@ class ConversationTestCase(django.test.TestCase):
         message.recipient_global_id  = their_profile.global_id
         message.sender_account_id    = my_account_id
         message.recipient_account_id = their_account_id
-        message.text                 = utils.random_string()
+        message.sender_text          = utils.random_string()
+        message.recipient_text       = utils.random_string()
         message.status               = Message.STATUS_SENT
         message.error                = None
         message.save()
@@ -450,7 +455,8 @@ class ConversationTestCase(django.test.TestCase):
         conversation = Conversation.objects.get(id=conversation.id)
 
         self.assertNotEqual(conversation.last_timestamp, cur_last_timestamp)
-        self.assertEqual(conversation.last_message, message.text)
+        self.assertEqual(conversation.last_message_1, message.sender_text)
+        self.assertEqual(conversation.last_message_2, message.recipient_text)
         self.assertEqual(conversation.num_unread_1, cur_num_unread_1)
         self.assertEqual(conversation.num_unread_2, cur_num_unread_2 - 1)
 
