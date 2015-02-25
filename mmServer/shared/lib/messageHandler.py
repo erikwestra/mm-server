@@ -47,7 +47,7 @@ def check_pending_messages():
                 msg.error  = None
             else:
                 msg.status  = Message.STATUS_FAILED
-                final.error = trans_result
+                msg.error = trans_result
             msg.save()
 
             # If the message was sent, update the conversation this message is

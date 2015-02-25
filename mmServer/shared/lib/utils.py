@@ -230,6 +230,47 @@ def datetime_to_unix_timestamp(datetime_in_utc):
 
 #############################################################################
 
+def date_to_string(date):
+    """ Return a datetime.date() object as a string of the form "YYYY-MM-DD"
+
+        If the given DateTime object is None, we return an empty string.
+    """
+    if date == None:
+        return ""
+    else:
+        return date.strftime("%Y-%m-%d")
+
+#############################################################################
+
+def string_to_date(string):
+    """ Return a string of the form "YYYY-MM-DD" as a datetime.date() object.
+
+        If the given string can't be parsed into a valid date, we return None.
+    """
+    if string in ["", None]: return None
+
+    parts = string.split("-")
+    if len(parts) != 3: return None
+    try:
+        year = int(parts[0])
+        month = int(parts[1])
+        day = int(parts[2])
+    except ValueError:
+        return None
+
+    if year < 1000 or year > 99999:
+        return None
+
+    if month < 1 or month > 12:
+        return None
+
+    if day < 1 or day > 31:
+        return None
+
+    return datetime.date(year, month, day)
+
+#############################################################################
+
 def exception_response():
     """ Return an HttpResponse object for when an exception occurs.
 

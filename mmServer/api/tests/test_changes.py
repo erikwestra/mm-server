@@ -65,13 +65,13 @@ class ChangesTestCase(django.test.TestCase):
 
         request = json.dumps({
             'profile' : {
-                'global_id'        : other_user_global_id,
-                'name'             : utils.random_string(),
-                'name_visible'     : True,
-                'location'         : utils.random_string(),
-                'location_visible' : True,
-                'picture_id'       : utils.random_string(),
-                'picture_visible'  : True,
+                'global_id'           : other_user_global_id,
+                'name'                : utils.random_string(),
+                'name_visible'        : True,
+                'email'               : utils.random_string(),
+                'email_visible'       : True,
+                'picture_id'          : utils.random_string(),
+                'picture_id_visible'  : True,
             },
             'account_secret' : other_user_account_secret,
         })
@@ -159,21 +159,21 @@ class ChangesTestCase(django.test.TestCase):
 
         # Calculate some new data to store into the second profile.
 
-        new_name             = utils.random_string()
-        new_name_visible     = False
-        new_location         = utils.random_string()
-        new_location_visible = True
-        new_picture_id       = utils.random_string()
-        new_picture_visible  = False
+        new_name                = utils.random_string()
+        new_name_visible        = False
+        new_email               = utils.random_string()
+        new_email_visible       = True
+        new_picture_id          = utils.random_string()
+        new_picture_id_visible  = False
 
         # Set up the body of our request.
 
-        request = json.dumps({'name'             : new_name,
-                              'name_visible'     : new_name_visible,
-                              'location'         : new_location,
-                              'location_visible' : new_location_visible,
-                              'picture_id'       : new_picture_id,
-                              'picture_visible'  : new_picture_visible})
+        request = json.dumps({'name'               : new_name,
+                              'name_visible'       : new_name_visible,
+                              'email'              : new_email,
+                              'email_visible'      : new_email_visible,
+                              'picture_id'         : new_picture_id,
+                              'picture_id_visible' : new_picture_id_visible})
 
         # Calculate the HMAC authentication headers we need to make an
         # authenticated request.

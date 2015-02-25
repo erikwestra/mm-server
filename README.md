@@ -31,29 +31,102 @@ object with the following attributes:
 > 
 > `name`
 > 
-> > The name of the profile's owner, as entered by the user.
+> > The name of the profile's owner.
 > 
 > `name_visible`
 > 
-> > A boolean indicating whether the profile name is visible to other users.
+> > Is the profile name visible to other users?
 > 
-> `location`
+> `email`
 > 
-> > The location of the profile's owner, as entered by the user.
+> > The email address of the profile's owner.
 > 
-> `location_visible`
+> `email_visible`
 > 
-> > A boolean indicating whether the profile location is visible to other
-> > users.
+> > Is the email address visible to other users?
+> 
+> `phone`
+> 
+> > The phone number of the profile's owner.
+> 
+> `phone_visible`
+> 
+> > Is the phone number visible to other users?
+> 
+> `address_1`
+> 
+> > The first line of the profile owner's street address.
+> 
+> `address_1_visible`
+> 
+> > Is the first line of the address visible to other users?
+> 
+> `address_2`
+> 
+> > The second line of the profile owner's street address.
+> 
+> `address_2_visible`
+> 
+> > Is the second line of the address visible to other users?
+> 
+> `city`
+> 
+> > The name of the city where the profile's owner is based.
+> 
+> `city_visible`
+> 
+> > Is the city visible to other users?
+> 
+> `state_province_or_region`
+> 
+> > The name of the state, province or region where the profile's owner is
+> > based.
+> 
+> `state_province_or_region_visible`
+> 
+> > Is the state, province or region visible to other users?
+> 
+> `zip_or_postal_code`
+> 
+> > The ZIP or postal code where the profile's owner is based.
+> 
+> `zip_or_postal_code_visible`
+> 
+> > Is the ZIP or postal code visible to other users?
+> 
+> `country`
+> 
+> > The name of the country where the profile's owner is based.
+> 
+> `country_visible`
+> 
+> > Is the country visible to other users?
+> 
+> `date_of_birth`
+> 
+> > The profile owner's date of birth, as a string of the form "YYYY-MM-DD".
+> > Note that this is never made public.
+> 
+> `social_security_number_last_4_digits`
+> 
+> > The last four digits of the profile owner's social security number.  Note
+> > that this is never made public.
+> 
+> `bio`
+> 
+> > A brief biography of the profile's owner.
+> 
+> `bio_visible`
+> 
+> > Is the bio visible to other users?
 > 
 > `picture_id`
 > 
 > > The ID of the profile picture uploaded by the user, if any.
 > 
-> `picture_visible`
+> `picture_id_visible`
 > 
-> >  A boolean indicating whether the profile picture is visible to other
-> >  users.
+> >  Is the profile picture visible to other users?
 
 Note that the profile object returned by the API will only contain the
 publically-visible portions of the profile if the user is attempting to view

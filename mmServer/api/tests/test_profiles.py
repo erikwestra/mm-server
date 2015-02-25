@@ -106,21 +106,64 @@ class ProfileTestCase(django.test.TestCase):
         # Check that the entire profile has been returned.
 
         self.assertIsInstance(data, dict)
-        self.assertItemsEqual(data.keys(), ["global_id",
-                                            "name",
-                                            "name_visible",
-                                            "location",
-                                            "location_visible",
-                                            "picture_id",
-                                            "picture_visible"])
+        self.assertItemsEqual(data.keys(),
+                              ["global_id",
+                               "name",
+                               "name_visible",
+                               "email",
+                               "email_visible",
+                               "phone",
+                               "phone_visible",
+                               "address_1",
+                               "address_1_visible",
+                               "address_2",
+                               "address_2_visible",
+                               "city",
+                               "city_visible",
+                               "state_province_or_region",
+                               "state_province_or_region_visible",
+                               "zip_or_postal_code",
+                               "zip_or_postal_code_visible",
+                               "country",
+                               "country_visible",
+                               "date_of_birth",
+                               "social_security_number_last_4_digits",
+                               "bio",
+                               "bio_visible",
+                               "picture_id",
+                               "picture_id_visible"])
 
-        self.assertEqual(data['global_id'],        profile.global_id)
-        self.assertEqual(data['name'],             profile.name)
-        self.assertEqual(data['name_visible'],     profile.name_visible)
-        self.assertEqual(data['location'],         profile.location)
-        self.assertEqual(data['location_visible'], profile.location_visible)
-        self.assertEqual(data['picture_id'],       profile.picture_id)
-        self.assertEqual(data['picture_visible'],  profile.picture_visible)
+        self.assertEqual(data['global_id'],          profile.global_id)
+        self.assertEqual(data['name'],               profile.name)
+        self.assertEqual(data['name_visible'],       profile.name_visible)
+        self.assertEqual(data['email'],              profile.email)
+        self.assertEqual(data['email_visible'],      profile.email_visible)
+        self.assertEqual(data['phone'],              profile.phone)
+        self.assertEqual(data['phone_visible'],      profile.phone_visible)
+        self.assertEqual(data['address_1'],          profile.address_1)
+        self.assertEqual(data['address_1_visible'],  profile.address_1_visible)
+        self.assertEqual(data['address_2'],          profile.address_2)
+        self.assertEqual(data['address_2_visible'],  profile.address_2_visible)
+        self.assertEqual(data['city'],               profile.city)
+        self.assertEqual(data['city_visible'],       profile.city_visible)
+        self.assertEqual(data['state_province_or_region'],
+                         profile.state_province_or_region)
+        self.assertEqual(data['state_province_or_region_visible'],
+                         profile.state_province_or_region_visible)
+        self.assertEqual(data['zip_or_postal_code'],
+                         profile.zip_or_postal_code)
+        self.assertEqual(data['zip_or_postal_code_visible'],
+                        profile.zip_or_postal_code_visible)
+        self.assertEqual(data['country'],            profile.country)
+        self.assertEqual(data['country_visible'],    profile.country_visible)
+        self.assertEqual(data['date_of_birth'],
+                         utils.date_to_string(profile.date_of_birth))
+        self.assertEqual(data['social_security_number_last_4_digits'],
+                         profile.social_security_number_last_4_digits)
+        self.assertEqual(data['bio'],                profile.bio)
+        self.assertEqual(data['bio_visible'],        profile.bio_visible)
+        self.assertEqual(data['picture_id'],         profile.picture_id)
+        self.assertEqual(data['picture_id_visible'], profile.picture_id_visible)
 
     # -----------------------------------------------------------------------
 
@@ -233,13 +276,31 @@ class ProfileTestCase(django.test.TestCase):
         global_id      = utils.calc_unique_global_id()
         account_secret = utils.random_string()
 
-        data = {'global_id'        : global_id,
-                'name'             : utils.random_string(),
-                'name_visible'     : True,
-                'location'         : utils.random_string(),
-                'location_visible' : False,
-                'picture_id'       : utils.random_string(),
-                'picture_visible'  : True}
+        data = {'global_id'                            : global_id,
+                'name'                                 : utils.random_string(),
+                'name_visible'                         : True,
+                'email'                                : utils.random_string(),
+                'email_visible'                        : False,
+                'phone'                                : utils.random_string(),
+                'phone_visible'                        : False,
+                'address_1'                            : utils.random_string(),
+                'address_1_visible'                    : False,
+                'address_2'                            : utils.random_string(),
+                'address_2_visible'                    : False,
+                'city'                                 : utils.random_string(),
+                'city_visible'                         : False,
+                'state_province_or_region'             : utils.random_string(),
+                'state_province_or_region_visible'     : False,
+                'zip_or_postal_code'                   : utils.random_string(),
+                'zip_or_postal_code_visible'           : False,
+                'country'                              : utils.random_string(),
+                'country_visible'                      : False,
+                'date_of_birth'                        : "1965-05-07",
+                'social_security_number_last_4_digits' : "1234",
+                'bio'                                  : utils.random_string(),
+                'bio_visible'                          : False,
+                'picture_id'                           : utils.random_string(),
+                'picture_id_visible'                   : True}
 
         # Set up the body of our request.
 
@@ -275,14 +336,38 @@ class ProfileTestCase(django.test.TestCase):
 
         self.assertIsNotNone(profile)
 
-        self.assertEqual(profile.global_id,        global_id)
-        self.assertEqual(profile.account_secret,   account_secret)
-        self.assertEqual(profile.name,             data['name'])
-        self.assertEqual(profile.name_visible,     data['name_visible'])
-        self.assertEqual(profile.location,         data['location'])
-        self.assertEqual(profile.location_visible, data['location_visible'])
-        self.assertEqual(profile.picture_id,       data['picture_id'])
-        self.assertEqual(profile.picture_visible,  data['picture_visible'])
+        self.assertEqual(profile.global_id,          global_id)
+        self.assertEqual(profile.account_secret,     account_secret)
+        self.assertEqual(profile.name,               data['name'])
+        self.assertEqual(profile.name_visible,       data['name_visible'])
+        self.assertEqual(profile.email,              data['email'])
+        self.assertEqual(profile.email_visible,      data['email_visible'])
+        self.assertEqual(profile.phone,              data['phone'])
+        self.assertEqual(profile.phone_visible,      data['phone_visible'])
+        self.assertEqual(profile.address_1,          data['address_1'])
+        self.assertEqual(profile.address_1_visible,  data['address_1_visible'])
+        self.assertEqual(profile.address_2,          data['address_2'])
+        self.assertEqual(profile.address_2_visible,  data['address_2_visible'])
+        self.assertEqual(profile.city,               data['city'])
+        self.assertEqual(profile.city_visible,       data['city_visible'])
+        self.assertEqual(profile.state_province_or_region,
+                         data['state_province_or_region'])
+        self.assertEqual(profile.state_province_or_region_visible,
+                         data['state_province_or_region_visible'])
+        self.assertEqual(profile.zip_or_postal_code,
+                         data['zip_or_postal_code'])
+        self.assertEqual(profile.zip_or_postal_code_visible,
+                         data['zip_or_postal_code_visible'])
+        self.assertEqual(profile.country,            data['country'])
+        self.assertEqual(profile.country_visible,    data['country_visible'])
+        self.assertEqual(profile.date_of_birth,
+                         utils.string_to_date(data['date_of_birth']))
+        self.assertEqual(profile.social_security_number_last_4_digits,
+                         data['social_security_number_last_4_digits'])
+        self.assertEqual(profile.bio,                data['bio'])
+        self.assertEqual(profile.bio_visible,        data['bio_visible'])
+        self.assertEqual(profile.picture_id,         data['picture_id'])
+        self.assertEqual(profile.picture_id_visible, data['picture_id_visible'])
 
     # -----------------------------------------------------------------------
 
@@ -295,21 +380,60 @@ class ProfileTestCase(django.test.TestCase):
 
         # Calculate some new data to store into the profile.
 
-        new_name             = utils.random_string()
-        new_name_visible     = False
-        new_location         = utils.random_string()
-        new_location_visible = True
-        new_picture_id       = utils.random_string()
-        new_picture_visible  = False
+        new_name                                 = utils.random_string()
+        new_name_visible                         = False
+        new_email                                = utils.random_string()
+        new_email_visible                        = True
+        new_phone                                = utils.random_string()
+        new_phone_visible                        = True
+        new_address_1                            = utils.random_string()
+        new_address_1_visible                    = True
+        new_address_2                            = utils.random_string()
+        new_address_2_visible                    = True
+        new_city                                 = utils.random_string()
+        new_city_visible                         = True
+        new_state_province_or_region             = utils.random_string()
+        new_state_province_or_region_visible     = True
+        new_zip_or_postal_code                   = utils.random_string()
+        new_zip_or_postal_code_visible           = True
+        new_country                              = utils.random_string()
+        new_country_visible                      = True
+        new_date_of_birth                        = "1990-09-20"
+        new_social_security_number_last_4_digits = "9876"
+        new_bio                                  = utils.random_string()
+        new_bio_visible                          = True
+        new_picture_id                           = utils.random_string()
+        new_picture_id_visible                   = False
 
         # Set up the body of our request.
 
-        request = json.dumps({'name'             : new_name,
-                              'name_visible'     : new_name_visible,
-                              'location'         : new_location,
-                              'location_visible' : new_location_visible,
-                              'picture_id'       : new_picture_id,
-                              'picture_visible'  : new_picture_visible})
+        request = json.dumps(
+           {'name'                       : new_name,
+            'name_visible'               : new_name_visible,
+            'email'                      : new_email,
+            'email_visible'              : new_email_visible,
+            'phone'                      : new_phone,
+            'phone_visible'              : new_phone_visible,
+            'address_1'                  : new_address_1,
+            'address_1_visible'          : new_address_1_visible,
+            'address_2'                  : new_address_2,
+            'address_2_visible'          : new_address_2_visible,
+            'city'                       : new_city,
+            'city_visible'               : new_city_visible,
+            'state_province_or_region'   : new_state_province_or_region,
+            'state_province_or_region_visible' :
+                                        new_state_province_or_region_visible,
+            'zip_or_postal_code'         : new_zip_or_postal_code,
+            'zip_or_postal_code_visible' : new_zip_or_postal_code_visible,
+            'country'                    : new_country,
+            'country_visible'            : new_country_visible,
+            'date_of_birth'              : new_date_of_birth,
+            'social_security_number_last_4_digits' :
+                                    new_social_security_number_last_4_digits,
+            'bio'                        : new_bio,
+            'bio_visible'                : new_bio_visible,
+            'picture_id'                 : new_picture_id,
+            'picture_id_visible'         : new_picture_id_visible})
 
         # Calculate the HMAC authentication headers we need to make an
         # authenticated request.
@@ -335,12 +459,35 @@ class ProfileTestCase(django.test.TestCase):
 
         profile = Profile.objects.get(global_id=profile.global_id)
 
-        self.assertEqual(profile.name,             new_name)
-        self.assertEqual(profile.name_visible,     new_name_visible)
-        self.assertEqual(profile.location,         new_location)
-        self.assertEqual(profile.location_visible, new_location_visible)
-        self.assertEqual(profile.picture_id,       new_picture_id)
-        self.assertEqual(profile.picture_visible,  new_picture_visible)
+        self.assertEqual(profile.name,               new_name)
+        self.assertEqual(profile.name_visible,       new_name_visible)
+        self.assertEqual(profile.email,              new_email)
+        self.assertEqual(profile.email_visible,      new_email_visible)
+        self.assertEqual(profile.phone,              new_phone)
+        self.assertEqual(profile.phone_visible,      new_phone_visible)
+        self.assertEqual(profile.address_1,          new_address_1)
+        self.assertEqual(profile.address_1_visible,  new_address_1_visible)
+        self.assertEqual(profile.address_2,          new_address_2)
+        self.assertEqual(profile.address_2_visible,  new_address_2_visible)
+        self.assertEqual(profile.city,               new_city)
+        self.assertEqual(profile.city_visible,       new_city_visible)
+        self.assertEqual(profile.state_province_or_region,
+                         new_state_province_or_region)
+        self.assertEqual(profile.state_province_or_region_visible,
+                         new_state_province_or_region_visible)
+        self.assertEqual(profile.zip_or_postal_code, new_zip_or_postal_code)
+        self.assertEqual(profile.zip_or_postal_code_visible,
+                         new_zip_or_postal_code_visible)
+        self.assertEqual(profile.country,            new_country)
+        self.assertEqual(profile.country_visible,    new_country_visible)
+        self.assertEqual(profile.date_of_birth,
+                         utils.string_to_date(new_date_of_birth))
+        self.assertEqual(profile.social_security_number_last_4_digits,
+                         new_social_security_number_last_4_digits)
+        self.assertEqual(profile.bio,                new_bio)
+        self.assertEqual(profile.bio_visible,        new_bio_visible)
+        self.assertEqual(profile.picture_id,         new_picture_id)
+        self.assertEqual(profile.picture_id_visible, new_picture_id_visible)
 
     # -----------------------------------------------------------------------
 

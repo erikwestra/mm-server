@@ -13,7 +13,7 @@ import mock
 from mmServer.shared.models import *
 from mmServer.shared.lib    import utils, encryption
 
-import mmServer.api.views.message # TODO: remove.
+import mmServer.api.views.message
 
 #############################################################################
 
@@ -23,19 +23,39 @@ def create_profile(name=None):
         If a name is supplied, it will be used for the new profile.  Otherwise,
         a random name will be calculated.
     """
+    global_id = utils.calc_unique_global_id()
+
     if name == None:
         name = utils.random_string()
 
     profile = Profile()
-    profile.global_id        = utils.calc_unique_global_id()
-    profile.deleted          = False
-    profile.account_secret   = utils.random_string()
-    profile.name             = name
-    profile.name_visible     = True
-    profile.location         = utils.random_string()
-    profile.location_visible = False
-    profile.picture_id       = utils.random_string()
-    profile.picture_visible  = True
+    profile.global_id                            = global_id
+    profile.deleted                              = False
+    profile.account_secret                       = utils.random_string()
+    profile.name                                 = name
+    profile.name_visible                         = True
+    profile.email                                = utils.random_string()
+    profile.email_visible                        = False
+    profile.phone                                = utils.random_string()
+    profile.phone_visible                        = False
+    profile.address_1                            = utils.random_string()
+    profile.address_1_visible                    = False
+    profile.address_2                            = utils.random_string()
+    profile.address_2_visible                    = False
+    profile.city                                 = utils.random_string()
+    profile.city_visible                         = False
+    profile.state_province_or_region             = utils.random_string()
+    profile.state_province_or_region_visible     = False
+    profile.zip_or_postal_code                   = utils.random_string()
+    profile.zip_or_postal_code_visible           = False
+    profile.country                              = utils.random_string()
+    profile.country_visible                      = False
+    profile.date_of_birth                        = datetime.date(1970, 01, 31)
+    profile.social_security_number_last_4_digits = "1234"
+    profile.bio                                  = utils.random_string()
+    profile.bio_visible                          = False
+    profile.picture_id                           = utils.random_string()
+    profile.picture_id_visible                   = True
     profile.save()
 
     return profile

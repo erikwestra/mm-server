@@ -67,13 +67,36 @@ def profile_GET(request, global_id):
             response = {'global_id' : profile.global_id,
                         'deleted'   : True}
         else:
-            response = {'global_id'        : profile.global_id,
-                        'name'             : profile.name,
-                        'name_visible'     : profile.name_visible,
-                        'location'         : profile.location,
-                        'location_visible' : profile.location_visible,
-                        'picture_id'       : profile.picture_id,
-                        'picture_visible'  : profile.picture_visible}
+            response = {'global_id'          : profile.global_id,
+                        'name'               : profile.name,
+                        'name_visible'       : profile.name_visible,
+                        'email'              : profile.email,
+                        'email_visible'      : profile.email_visible,
+                        'phone'              : profile.phone,
+                        'phone_visible'      : profile.phone_visible,
+                        'address_1'          : profile.address_1,
+                        'address_1_visible'  : profile.address_1_visible,
+                        'address_2'          : profile.address_2,
+                        'address_2_visible'  : profile.address_2_visible,
+                        'city'               : profile.city,
+                        'city_visible'       : profile.city_visible,
+                        'state_province_or_region' :
+                            profile.state_province_or_region,
+                        'state_province_or_region_visible' :
+                            profile.state_province_or_region_visible,
+                        'zip_or_postal_code' : profile.zip_or_postal_code,
+                        'zip_or_postal_code_visible' :
+                            profile.zip_or_postal_code_visible,
+                        'country'            : profile.country,
+                        'country_visible'    : profile.country_visible,
+                        'date_of_birth'      :
+                            utils.date_to_string(profile.date_of_birth),
+                        'social_security_number_last_4_digits' :
+                            profile.social_security_number_last_4_digits,
+                        'bio'                : profile.bio,
+                        'bio_visible'        : profile.bio_visible,
+                        'picture_id'         : profile.picture_id,
+                        'picture_id_visible' : profile.picture_id_visible}
 
         return HttpResponse(json.dumps(response),
                             mimetype="application/json")
@@ -92,9 +115,26 @@ def profile_GET(request, global_id):
         else:
             if profile.name_visible:
                 response['name'] = profile.name
-            if profile.location_visible:
-                response['location'] = profile.location
-            if profile.picture_visible:
+            if profile.email_visible:
+                response['email'] = profile.email
+            if profile.phone_visible:
+                response['phone'] = profile.phone
+            if profile.address_1_visible:
+                response['address_1'] = profile.address_1
+            if profile.address_2_visible:
+                response['address_2'] = profile.address_2
+            if profile.city_visible:
+                response['city'] = profile.city
+            if profile.state_province_or_region_visible:
+                response['state_province_or_region'] = \
+                    profile.state_province_or_region
+            if profile.zip_or_postal_code_visible:
+                response['zip_or_postal_code'] = profile.zip_or_postal_code
+            if profile.country_visible:
+                response['country'] = profile.country
+            if profile.bio_visible:
+                response['bio'] = profile.bio
+            if profile.picture_id_visible:
                 response['picture_id'] = profile.picture_id
 
         return HttpResponse(json.dumps(response),
@@ -135,15 +175,44 @@ def profile_POST(request, global_id):
     if not utils.check_hmac_authentication(request, account_secret):
         return HttpResponseForbidden()
 
+    if "date_of_birth" in profile_data:
+        date_of_birth = utils.string_to_date(profile_data['date_of_birth'])
+        if date_of_birth == None:
+            return HttpResponseBadRequest("Invalid date_of_birth value.")
+    else:
+        date_of_birth = None
+
     profile = Profile()
-    profile.global_id        = global_id
-    profile.account_secret   = account_secret
-    profile.name             = profile_data.get("name" "")
-    profile.name_visible     = profile_data.get("name_visible", False)
-    profile.location         = profile_data.get("location", "")
-    profile.location_visible = profile_data.get("location_visible", False)
-    profile.picture_id       = profile_data.get("picture_id", "")
-    profile.picture_visible  = profile_data.get("picture_visible", False)
+    profile.global_id           = global_id
+    profile.account_secret      = account_secret
+    profile.name                = profile_data.get("name" "")
+    profile.name_visible        = profile_data.get("name_visible", False)
+    profile.email               = profile_data.get("email", "")
+    profile.email_visible       = profile_data.get("email_visible", False)
+    profile.phone               = profile_data.get("phone", "")
+    profile.phone_visible       = profile_data.get("phone_visible", False)
+    profile.address_1           = profile_data.get("address_1", "")
+    profile.address_1_visible   = profile_data.get("address_1_visible", False)
+    profile.address_2           = profile_data.get("address_2", "")
+    profile.address_2_visible   = profile_data.get("address_2_visible", False)
+    profile.city                = profile_data.get("city", "")
+    profile.city_visible        = profile_data.get("city_visible", False)
+    profile.state_province_or_region = profile_data.get(
+                                            "state_province_or_region", "")
+    profile.state_province_or_region_visible = profile_data.get(
+                                    "state_province_or_region_visible", False)
+    profile.zip_or_postal_code  = profile_data.get("zip_or_postal_code", "")
+    profile.zip_or_postal_code_visible = profile_data.get(
+                                    "zip_or_postal_code_visible", False)
+    profile.country             = profile_data.get("country", "")
+    profile.country_visible     = profile_data.get("country_visible", False)
+    profile.date_of_birth       = date_of_birth
+    profile.social_security_number_last_4_digits = \
+        profile_data.get("social_security_number_last_4_digits", "")
+    profile.bio                 = profile_data.get("bio", "")
+    profile.bio_visible         = profile_data.get("bio_visible", False)
+    profile.picture_id          = profile_data.get("picture_id", "")
+    profile.picture_id_visible  = profile_data.get("picture_id_visible", False)
 
     profile.save()
 
@@ -176,14 +245,57 @@ def profile_PUT(request, global_id):
         profile.name = changes['name']
     if "name_visible" in changes:
         profile.name_visible = changes['name_visible']
-    if "location" in changes:
-        profile.location = changes['location']
-    if "location_visible" in changes:
-        profile.location_visible = changes['location_visible']
+    if "email" in changes:
+        profile.email = changes['email']
+    if "email_visible" in changes:
+        profile.email_visible = changes['email_visible']
+    if "phone" in changes:
+        profile.phone = changes['phone']
+    if "phone_visible" in changes:
+        profile.phone_visible = changes['phone_visible']
+    if "address_1" in changes:
+        profile.address_1 = changes['address_1']
+    if "address_1_visible" in changes:
+        profile.address_1_visible = changes['address_1_visible']
+    if "address_2" in changes:
+        profile.address_2 = changes['address_2']
+    if "address_2_visible" in changes:
+        profile.address_2_visible = changes['address_2_visible']
+    if "city" in changes:
+        profile.city = changes['city']
+    if "city_visible" in changes:
+        profile.city_visible = changes['city_visible']
+    if "state_province_or_region" in changes:
+        profile.state_province_or_region = changes['state_province_or_region']
+    if "state_province_or_region_visible" in changes:
+        profile.state_province_or_region_visible = \
+            changes['state_province_or_region_visible']
+    if "zip_or_postal_code" in changes:
+        profile.zip_or_postal_code = changes['zip_or_postal_code']
+    if "zip_or_postal_code_visible" in changes:
+        profile.zip_or_postal_code_visible = \
+            changes['zip_or_postal_code_visible']
+    if "country" in changes:
+        profile.country = changes['country']
+    if "country_visible" in changes:
+        profile.country_visible = changes['country_visible']
+    if "date_of_birth" in changes:
+        date_of_birth = utils.string_to_date(changes['date_of_birth'])
+        if date_of_birth == None:
+            return HttpResponseBadRequest("Invalid date_of_birth value")
+        else:
+            profile.date_of_birth = date_of_birth
+    if "social_security_number_last_4_digits" in changes:
+        profile.social_security_number_last_4_digits = \
+            changes['social_security_number_last_4_digits']
+    if "bio" in changes:
+        profile.bio = changes['bio']
+    if "bio_visible" in changes:
+        profile.bio_visible = changes['bio_visible']
     if "picture_id" in changes:
         profile.picture_id = changes['picture_id']
-    if "picture_visible" in changes:
-        profile.picture_visible = changes['picture_visible']
+    if "picture_id_visible" in changes:
+        profile.picture_id_visible = changes['picture_id_visible']
 
     profile.save()
 

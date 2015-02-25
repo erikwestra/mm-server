@@ -53,15 +53,34 @@ class ModelWithUpdateID(models.Model):
 class Profile(ModelWithUpdateID):
     """ A User's profile.
     """
-    global_id        = models.TextField(db_index=True, unique=True)
-    deleted          = models.BooleanField(default=False)
-    account_secret   = models.TextField()
-    name             = models.TextField()
-    name_visible     = models.BooleanField(default=False)
-    location         = models.TextField()
-    location_visible = models.BooleanField(default=False)
-    picture_id       = models.TextField()
-    picture_visible  = models.BooleanField(default=False)
+    global_id                            = models.TextField(db_index=True,
+                                                            unique=True)
+    deleted                              = models.BooleanField(default=False)
+    account_secret                       = models.TextField()
+    name                                 = models.TextField(default="")
+    name_visible                         = models.BooleanField(default=False)
+    email                                = models.TextField(default="")
+    email_visible                        = models.BooleanField(default=False)
+    phone                                = models.TextField(default="")
+    phone_visible                        = models.BooleanField(default=False)
+    address_1                            = models.TextField(default="")
+    address_1_visible                    = models.BooleanField(default=False)
+    address_2                            = models.TextField(default="")
+    address_2_visible                    = models.BooleanField(default=False)
+    city                                 = models.TextField(default="")
+    city_visible                         = models.BooleanField(default=False)
+    state_province_or_region             = models.TextField(default="")
+    state_province_or_region_visible     = models.BooleanField(default=False)
+    zip_or_postal_code                   = models.TextField(default="")
+    zip_or_postal_code_visible           = models.BooleanField(default=False)
+    country                              = models.TextField(default="")
+    country_visible                      = models.BooleanField(default=False)
+    date_of_birth                        = models.DateField(null=True)
+    social_security_number_last_4_digits = models.TextField(default="")
+    bio                                  = models.TextField(default="")
+    bio_visible                          = models.BooleanField(default=False)
+    picture_id                           = models.TextField(default="")
+    picture_id_visible                   = models.BooleanField(default=False)
 
 #############################################################################
 

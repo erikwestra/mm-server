@@ -124,10 +124,28 @@ def changes_GET(request):
             else:
                 if profile.name_visible:
                     profile_data['name'] = profile.name
-                if profile.location_visible:
-                    profile_data['location'] = profile.location
-                if profile.picture_visible:
-                    profile_data['picture'] = profile.picture_id
+                if profile.email_visible:
+                    profile_data['email'] = profile.email
+                if profile.phone_visible:
+                    profile_data['phone'] = profile.phone
+                if profile.address_1_visible:
+                    profile_data['address_1'] = profile.address_1
+                if profile.address_2_visible:
+                    profile_data['address_2'] = profile.address_2
+                if profile.city_visible:
+                    profile_data['city'] = profile.city
+                if profile.state_province_or_region_visible:
+                    profile_data['state_province_or_region'] = \
+                        profile.state_province_or_region
+                if profile.zip_or_postal_code_visible:
+                    profile_data['zip_or_postal_code'] = \
+                        profile.zip_or_postal_code
+                if profile.country_visible:
+                    profile_data['country'] = profile.country
+                if profile.bio_visible:
+                    profile_data['bio'] = profile.bio
+                if profile.picture_id_visible:
+                    profile_data['picture_id'] = profile.picture_id
 
             changes.append({'type' : "profile",
                             'data' : profile_data})
