@@ -111,9 +111,7 @@ class ProfileTestCase(django.test.TestCase):
                                "name",
                                "name_visible",
                                "email",
-                               "email_visible",
                                "phone",
-                               "phone_visible",
                                "address_1",
                                "address_1_visible",
                                "address_2",
@@ -137,9 +135,7 @@ class ProfileTestCase(django.test.TestCase):
         self.assertEqual(data['name'],               profile.name)
         self.assertEqual(data['name_visible'],       profile.name_visible)
         self.assertEqual(data['email'],              profile.email)
-        self.assertEqual(data['email_visible'],      profile.email_visible)
         self.assertEqual(data['phone'],              profile.phone)
-        self.assertEqual(data['phone_visible'],      profile.phone_visible)
         self.assertEqual(data['address_1'],          profile.address_1)
         self.assertEqual(data['address_1_visible'],  profile.address_1_visible)
         self.assertEqual(data['address_2'],          profile.address_2)
@@ -280,9 +276,7 @@ class ProfileTestCase(django.test.TestCase):
                 'name'                                 : utils.random_string(),
                 'name_visible'                         : True,
                 'email'                                : utils.random_string(),
-                'email_visible'                        : False,
                 'phone'                                : utils.random_string(),
-                'phone_visible'                        : False,
                 'address_1'                            : utils.random_string(),
                 'address_1_visible'                    : False,
                 'address_2'                            : utils.random_string(),
@@ -341,9 +335,7 @@ class ProfileTestCase(django.test.TestCase):
         self.assertEqual(profile.name,               data['name'])
         self.assertEqual(profile.name_visible,       data['name_visible'])
         self.assertEqual(profile.email,              data['email'])
-        self.assertEqual(profile.email_visible,      data['email_visible'])
         self.assertEqual(profile.phone,              data['phone'])
-        self.assertEqual(profile.phone_visible,      data['phone_visible'])
         self.assertEqual(profile.address_1,          data['address_1'])
         self.assertEqual(profile.address_1_visible,  data['address_1_visible'])
         self.assertEqual(profile.address_2,          data['address_2'])
@@ -383,9 +375,7 @@ class ProfileTestCase(django.test.TestCase):
         new_name                                 = utils.random_string()
         new_name_visible                         = False
         new_email                                = utils.random_string()
-        new_email_visible                        = True
         new_phone                                = utils.random_string()
-        new_phone_visible                        = True
         new_address_1                            = utils.random_string()
         new_address_1_visible                    = True
         new_address_2                            = utils.random_string()
@@ -411,9 +401,7 @@ class ProfileTestCase(django.test.TestCase):
            {'name'                       : new_name,
             'name_visible'               : new_name_visible,
             'email'                      : new_email,
-            'email_visible'              : new_email_visible,
             'phone'                      : new_phone,
-            'phone_visible'              : new_phone_visible,
             'address_1'                  : new_address_1,
             'address_1_visible'          : new_address_1_visible,
             'address_2'                  : new_address_2,
@@ -462,9 +450,7 @@ class ProfileTestCase(django.test.TestCase):
         self.assertEqual(profile.name,               new_name)
         self.assertEqual(profile.name_visible,       new_name_visible)
         self.assertEqual(profile.email,              new_email)
-        self.assertEqual(profile.email_visible,      new_email_visible)
         self.assertEqual(profile.phone,              new_phone)
-        self.assertEqual(profile.phone_visible,      new_phone_visible)
         self.assertEqual(profile.address_1,          new_address_1)
         self.assertEqual(profile.address_1_visible,  new_address_1_visible)
         self.assertEqual(profile.address_2,          new_address_2)

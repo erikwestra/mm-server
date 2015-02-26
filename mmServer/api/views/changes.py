@@ -124,10 +124,6 @@ def changes_GET(request):
             else:
                 if profile.name_visible:
                     profile_data['name'] = profile.name
-                if profile.email_visible:
-                    profile_data['email'] = profile.email
-                if profile.phone_visible:
-                    profile_data['phone'] = profile.phone
                 if profile.address_1_visible:
                     profile_data['address_1'] = profile.address_1
                 if profile.address_2_visible:

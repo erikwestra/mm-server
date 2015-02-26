@@ -69,7 +69,6 @@ class ChangesTestCase(django.test.TestCase):
                 'name'                : utils.random_string(),
                 'name_visible'        : True,
                 'email'               : utils.random_string(),
-                'email_visible'       : True,
                 'picture_id'          : utils.random_string(),
                 'picture_id_visible'  : True,
             },
@@ -162,7 +161,6 @@ class ChangesTestCase(django.test.TestCase):
         new_name                = utils.random_string()
         new_name_visible        = False
         new_email               = utils.random_string()
-        new_email_visible       = True
         new_picture_id          = utils.random_string()
         new_picture_id_visible  = False
 
@@ -171,7 +169,6 @@ class ChangesTestCase(django.test.TestCase):
         request = json.dumps({'name'               : new_name,
                               'name_visible'       : new_name_visible,
                               'email'              : new_email,
-                              'email_visible'      : new_email_visible,
                               'picture_id'         : new_picture_id,
                               'picture_id_visible' : new_picture_id_visible})
 

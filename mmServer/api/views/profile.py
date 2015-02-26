@@ -71,9 +71,7 @@ def profile_GET(request, global_id):
                         'name'               : profile.name,
                         'name_visible'       : profile.name_visible,
                         'email'              : profile.email,
-                        'email_visible'      : profile.email_visible,
                         'phone'              : profile.phone,
-                        'phone_visible'      : profile.phone_visible,
                         'address_1'          : profile.address_1,
                         'address_1_visible'  : profile.address_1_visible,
                         'address_2'          : profile.address_2,
@@ -115,10 +113,6 @@ def profile_GET(request, global_id):
         else:
             if profile.name_visible:
                 response['name'] = profile.name
-            if profile.email_visible:
-                response['email'] = profile.email
-            if profile.phone_visible:
-                response['phone'] = profile.phone
             if profile.address_1_visible:
                 response['address_1'] = profile.address_1
             if profile.address_2_visible:
@@ -188,9 +182,7 @@ def profile_POST(request, global_id):
     profile.name                = profile_data.get("name" "")
     profile.name_visible        = profile_data.get("name_visible", False)
     profile.email               = profile_data.get("email", "")
-    profile.email_visible       = profile_data.get("email_visible", False)
     profile.phone               = profile_data.get("phone", "")
-    profile.phone_visible       = profile_data.get("phone_visible", False)
     profile.address_1           = profile_data.get("address_1", "")
     profile.address_1_visible   = profile_data.get("address_1_visible", False)
     profile.address_2           = profile_data.get("address_2", "")
@@ -247,12 +239,8 @@ def profile_PUT(request, global_id):
         profile.name_visible = changes['name_visible']
     if "email" in changes:
         profile.email = changes['email']
-    if "email_visible" in changes:
-        profile.email_visible = changes['email_visible']
     if "phone" in changes:
         profile.phone = changes['phone']
-    if "phone_visible" in changes:
-        profile.phone_visible = changes['phone_visible']
     if "address_1" in changes:
         profile.address_1 = changes['address_1']
     if "address_1_visible" in changes:

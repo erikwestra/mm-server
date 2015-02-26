@@ -41,18 +41,6 @@ object with the following attributes:
 > 
 > > The email address of the profile's owner.
 > 
-> `email_visible`
-> 
-> > Is the email address visible to other users?
-> 
-> `phone`
-> 
-> > The phone number of the profile's owner.
-> 
-> `phone_visible`
-> 
-> > Is the phone number visible to other users?
-> 
 > `address_1`
 > 
 > > The first line of the profile owner's street address.
