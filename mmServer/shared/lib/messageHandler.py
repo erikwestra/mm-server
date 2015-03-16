@@ -2,6 +2,7 @@
 
     This module define various functions which work with messages.
 """
+import datetime
 import logging
 
 from django.utils import timezone
