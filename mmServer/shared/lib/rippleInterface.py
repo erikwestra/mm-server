@@ -20,10 +20,13 @@ def request(command, **params):
 
         Note that this is a synchronous function; it waits for the server to
         respond before returning.  If something goes wrong, we try each server
-        in turn until one works.
+        in turn until one works.  If no server returns a successful result, we
+        return the last failed result.
     """
     servers = list(settings.RIPPLED_SERVER_URLS)
     random.shuffle(servers)
+
+    last_response = False
     for server in servers:
         try:
             request = {'command' : command}
@@ -40,9 +43,10 @@ def request(command, **params):
                 return response
             else:
                 # Keep trying with the next server.
+                last_response = response
                 continue
         except:
             continue
 
-    return None
+    return last_response
 
