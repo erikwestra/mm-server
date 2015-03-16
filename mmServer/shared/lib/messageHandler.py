@@ -34,9 +34,16 @@ def check_pending_messages():
         if response == None:
             continue
 
-        if response['status'] != "success":
-            logger.warn("Ripple server returned error: " + repr(response))
-            continue
+        if response['status'] == "error":
+            # The Ripple server returned an error.  If the error was
+            # "txnNotFound" and the message is more than 60 seconds old, mark
+            # it as failed so we don't continue to check for failed messages.
+            cutoff = timezone.now() - datetime.timedelta(seconds=60)
+            if response['error'] == "txnNotFound" and msg.timestamp < cutoff:
+                msg.status = Message.STATUS_FAILED
+                msg.error  = response['error']
+                msg.save()
+                continue
 
         if response['result'].get("validated", False):
             # This message has been validated -> update the status.
