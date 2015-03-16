@@ -60,10 +60,25 @@ def messages_GET(request):
     else:
         their_global_id = None
 
+    if "num_msgs" in request.GET:
+        try:
+            num_msgs = int(request.GET['num_msgs'])
+        except ValueError:
+            return HttpResponseBadRequest("Invalid 'num_msgs' parameter.")
+    else:
+        num_msgs = 20
+
+    if "from_msg" in request.GET:
+        from_msg = request.GET['from_msg']
+    else:
+        from_msg = None
+
+    # Check the caller's authentication.
+
     try:
         my_profile = Profile.objects.get(global_id=my_global_id)
     except Profile.DoesNotExist:
-        return HttpResponseBadRequest("User doesn't have a profile!")
+        return HttpResponseBadRequest("User doesn't have a profile")
 
     if not utils.check_hmac_authentication(request,
                                            my_profile.account_secret):
@@ -74,26 +89,50 @@ def messages_GET(request):
 
     messageHandler.check_pending_messages()
 
-    # Construct a database query to retrieve the desired set of messages.
-
-    if their_global_id != None:
-        query = ((Q(sender_global_id=my_global_id) &
-                  Q(recipient_global_id=their_global_id)) |
-                 (Q(sender_global_id=their_global_id) &
-                  Q(recipient_global_id=my_global_id)))
-    else:
-        query = (Q(sender_global_id=my_global_id) |
-                 Q(recipient_global_id=my_global_id))
-
     # Perform the actual grabbing of the data with an exclusive table lock.
     # This prevents other clients from changing the data until we're finished.
 
     with dbHelpers.exclusive_access(Message):
 
+        # Construct a database query to retrieve the desired set of messages.
+        # Note that we process the messages in reverse, starting with the most
+        # recent matching message.
+
+        if their_global_id != None:
+            filter = ((Q(sender_global_id=my_global_id) &
+                       Q(recipient_global_id=their_global_id)) |
+                      (Q(sender_global_id=their_global_id) &
+                       Q(recipient_global_id=my_global_id)))
+        else:
+            filter = (Q(sender_global_id=my_global_id) |
+                      Q(recipient_global_id=my_global_id))
+
+        query = Message.objects.filter(filter).order_by("-id")
+        if from_msg != None:
+            try:
+                msg = Message.objects.get(hash=from_msg)
+            except msg.DoesNotExist:
+                msg = None
+
+            if msg == None:
+                return HttpResponseBadRequest("'from_msg' not a message hash")
+
+            query = query.filter(id__lt=msg.id)
+
+        if num_msgs != -1:
+            query = query[:num_msgs+1]
+
         # Collect the list of messages to return.
 
         messages = []
-        for msg in Message.objects.filter(query).order_by("id"):
+        has_more = False # initially.
+
+        for msg in query:
+            if num_msgs != -1 and len(messages) == num_msgs:
+                # We've got at least one more message than was asked for.
+                has_more = True
+                continue
+
             timestamp = utils.datetime_to_unix_timestamp(msg.timestamp)
             status    = Message.STATUS_MAP[msg.status]
 
@@ -115,8 +154,11 @@ def messages_GET(request):
 
             messages.append(message)
 
+        messages.reverse() # Return the newest message last, not first.
+
     # Finally, return the results back to the caller.
 
-    return HttpResponse(json.dumps({'messages'    : messages}),
+    return HttpResponse(json.dumps({'messages' : messages,
+                                    'has_more' : has_more}),
                         mimetype="application/json")
 

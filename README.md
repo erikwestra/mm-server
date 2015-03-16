@@ -790,13 +790,25 @@ The following query-string parameters are supported:
 > `their_global_id` _(optional)_
 > 
 > > The other user's global ID.
+> 
+> `num_msgs` _(optional)_
+> 
+> > The maximum number of messages to return.  If this is not supplied, we will
+> > return a maximum of 20 messages.  Setting this to -1 will cause all
+> > messages to be returned.
+> 
+> `from_msg` _(optional)_
+> 
+> > If this is supplied, we return the `num_msgs` messages before the message
+> > with the given hash value.  If this is not supplied, we return the most
+> > recent `num_msgs` messages.
 
 > _**Note**: the current user must have an existing profile for this API
 > endpoint to work._
 
 Upon completion, this API endpoint will return an HTTP response code of 200
 (OK) if the request was successful.  The body of the response will be a string
-containing the following JSON-format object:
+containing the following JSON-format data:
 
 >     {messages: [
 >          {hash: "...",
@@ -812,7 +824,8 @@ containing the following JSON-format object:
 >           status: "...",
 >           error: "..."},
 >          ...
->      ]
+>      ],
+>      has_more: true
 >     }
 
 Each entry in the `messages` list is an object with the details of the message,
@@ -820,6 +833,9 @@ as described in the Messages section, above.  The message text will be selected
 based on whether the current user is the sender or the receipient of the
 message.  The `error` field will only be present if the message failed to be
 sent.
+
+The `has_more` field will be set to `true` if there are more messages for this
+query.  Otherwise, it will be set to `false`.
 
 If the `their_global_id` parameter was supplied, only messages between the two
 users will be returned.  Otherwise, all messages sent to or received by the

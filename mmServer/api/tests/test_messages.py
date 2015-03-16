@@ -366,9 +366,10 @@ class MessageTestCase(django.test.TestCase):
         )
 
         # Ask the "GET api/messages" endpoint to return the list of messages
-        # between these two users.
+        # for this user.
 
-        url = "/api/messages?my_global_id=" + my_profile.global_id
+        url = "/api/messages?my_global_id=%s&num_msgs=-1" % my_profile.global_id
+
         response = self.client.get(url,
                                    "",
                                    content_type="application/json",
@@ -382,9 +383,175 @@ class MessageTestCase(django.test.TestCase):
 
         # Check that the list of messages was correctly returned.
 
-        self.assertItemsEqual(data.keys(), ["messages"])
+        self.assertItemsEqual(data.keys(), ["messages", "has_more"])
         self.assertEqual(len(data['messages']), len(messages))
         for i in range(len(messages)):
+            orig_msg     = messages[i]
+            returned_msg = data['messages'][i]
+
+            self.assertEqual(orig_msg['sender_text'],
+                             returned_msg['sender_text'])
+            self.assertEqual(orig_msg['recipient_text'],
+                             returned_msg['recipient_text'])
+
+    # -----------------------------------------------------------------------
+
+    def test_get_paginated_messages(self):
+        """ Check that "GET api/messages" returns all of a user's messages.
+        """
+        # Create a profile for the current user.
+
+        my_profile = apiTestHelpers.create_profile()
+
+        # Create profile for two other users the current user is communicating
+        # with.
+
+        other_profile_1 = apiTestHelpers.create_profile()
+        other_profile_2 = apiTestHelpers.create_profile()
+
+        # Create a conversation between the current user and other user 1.
+
+        conversation_1 = \
+            apiTestHelpers.create_conversation(my_profile.global_id,
+                                               other_profile_1.global_id)
+
+        # Create a conversation between the current user and other user 2.
+
+        conversation_2 = \
+            apiTestHelpers.create_conversation(my_profile.global_id,
+                                               other_profile_2.global_id)
+
+        # Create random Ripple account IDs for our three users.
+
+        my_account_id      = utils.random_string()
+        other_account_id_1 = utils.random_string()
+        other_account_id_2 = utils.random_string()
+
+        # Create a bunch of messages between the three users.
+
+        messages = [{'conversation'      : conversation_1,
+                     'sender_id'         : my_profile.global_id,
+                     'sender_account'    : my_account_id,
+                     'recipient_id'      : other_profile_1.global_id,
+                     'recipient_account' : other_account_id_1,
+                     'sender_text'       : utils.random_string(),
+                     'recipient_text'    : utils.random_string()},
+
+                    {'conversation'      : conversation_1,
+                     'sender_id'         : other_profile_1.global_id,
+                     'sender_account'    : other_account_id_1,
+                     'recipient_id'      : my_profile.global_id,
+                     'recipient_account' : my_account_id,
+                     'sender_text'       : utils.random_string(),
+                     'recipient_text'    : utils.random_string()},
+
+                    {'conversation'      : conversation_2,
+                     'sender_id'         : my_profile.global_id,
+                     'sender_account'    : my_account_id,
+                     'recipient_id'      : other_profile_2.global_id,
+                     'recipient_account' : other_account_id_2,
+                     'sender_text'       : utils.random_string(),
+                     'recipient_text'    : utils.random_string()},
+
+                    {'conversation'      : conversation_2,
+                     'sender_id'         : other_profile_2.global_id,
+                     'sender_account'    : other_account_id_2,
+                     'recipient_id'      : my_profile.global_id,
+                     'recipient_account' : my_account_id,
+                     'sender_text'       : utils.random_string(),
+                     'recipient_text'    : utils.random_string()}]
+
+        for msg in messages:
+            message = Message()
+            message.conversation         = msg['conversation']
+            message.hash                 = utils.random_string()
+            message.timestamp            = timezone.now()
+            message.sender_global_id     = msg['sender_id']
+            message.recipient_global_id  = msg['recipient_id']
+            message.sender_account_id    = msg['sender_account']
+            message.recipient_account_id = msg['recipient_account']
+            message.sender_text          = msg['sender_text']
+            message.recipient_text       = msg['recipient_text']
+            message.status               = Message.STATUS_SENT
+            message.action               = None
+            message.action_params        = json.dumps({})
+            message.amount_in_drops      = 1
+            message.error                = None
+            message.save()
+
+        # Calculate the HMAC authentication headers we need to make an
+        # authenticated request.
+
+        headers = utils.calc_hmac_headers(
+            method="GET",
+            url="/api/messages",
+            body="",
+            account_secret=my_profile.account_secret
+        )
+
+        # Ask the "GET api/messages" endpoint to return the 2 most recent
+        # messages.
+
+        url = "/api/messages?my_global_id=%s&num_msgs=2" % my_profile.global_id
+
+        response = self.client.get(url,
+                                   "",
+                                   content_type="application/json",
+                                   **headers)
+        if response.status_code == 500:
+            print response.content
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], "application/json")
+        data = json.loads(response.content)
+
+        # Check that the two most recent messages were correctly returned.
+
+        self.assertItemsEqual(data.keys(), ["messages", "has_more"])
+        self.assertEqual(len(data['messages']), 2)
+        self.assertEqual(data['has_more'], True)
+
+        for i in range(2):
+            orig_msg     = messages[len(messages)-2+i]
+            returned_msg = data['messages'][i]
+
+            self.assertEqual(orig_msg['sender_text'],
+                             returned_msg['sender_text'])
+            self.assertEqual(orig_msg['recipient_text'],
+                             returned_msg['recipient_text'])
+
+        # Now ask for the rest of the messages.
+
+        from_msg = data['messages'][0]['hash']
+
+        headers = utils.calc_hmac_headers(
+            method="GET",
+            url="/api/messages",
+            body="",
+            account_secret=my_profile.account_secret
+        )
+
+        url = "/api/messages?my_global_id=%s&from_msg=%s&num_msgs=-1" \
+            % (my_profile.global_id, from_msg)
+
+        response = self.client.get(url,
+                                   "",
+                                   content_type="application/json",
+                                   **headers)
+        if response.status_code == 500:
+            print response.content
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], "application/json")
+        data = json.loads(response.content)
+
+        # Check that the rest of the messages were correctly returned.
+
+        self.assertItemsEqual(data.keys(), ["messages", "has_more"])
+        self.assertEqual(len(data['messages']), 2)
+        self.assertEqual(data['has_more'], False)
+
+        for i in range(2):
             orig_msg     = messages[i]
             returned_msg = data['messages'][i]
 
@@ -457,8 +624,9 @@ class MessageTestCase(django.test.TestCase):
         # Ask the "GET api/messages" endpoint to return the list of messages
         # between these two users.
 
-        url = "/api/messages?my_global_id=" + sender_profile.global_id \
-            + "&their_global_id=" + recipient_profile.global_id
+        url = "/api/messages?my_global_id=%s&their_global_id=%s&num_msgs=-1" \
+            % (sender_profile.global_id, recipient_profile.global_id)
+
         response = self.client.get(url,
                                    "",
                                    content_type="application/json",
@@ -472,7 +640,7 @@ class MessageTestCase(django.test.TestCase):
 
         # Check that the list of messages was correctly returned.
 
-        self.assertItemsEqual(data.keys(), ["messages"])
+        self.assertItemsEqual(data.keys(), ["messages", "has_more"])
         self.assertEqual(len(data['messages']), 3)
         msgs = data['messages']
         self.assertEqual(msgs[0]['sender_text'], sender_text_1)
@@ -546,8 +714,8 @@ class MessageTestCase(django.test.TestCase):
         # Ripple server, see that the message has been validated, and change
         # the message status to "sent".
 
-        url = "/api/messages?my_global_id=" + sender_profile.global_id \
-            + "&their_global_id=" + recipient_profile.global_id
+        url = "/api/messages?my_global_id=%s&their_global_id=%s&num_msgs=-1" \
+            % (sender_profile.global_id, recipient_profile.global_id)
 
         response = self.client.get(url,
                                    "",
