@@ -27,6 +27,8 @@ class MessageTestCase(django.test.TestCase):
     def test_send_message(self):
         """ Test the logic of sending a message via the API.
         """
+        XRP = 1000000 # Value of 1 XRP, in drops.
+
         # Create two random profiles.
 
         sender_profile    = apiTestHelpers.create_profile()
@@ -36,6 +38,67 @@ class MessageTestCase(django.test.TestCase):
 
         sender_account_id    = utils.random_string()
         recipient_account_id = utils.random_string()
+
+        # Get or create the Ripple holding account.
+
+        try:
+            holding_account = Account.objects.get(
+                                    type=Account.TYPE_RIPPLE_HOLDING)
+        except Account.DoesNotExist:
+            holding_account = Account()
+            holding_account.global_id        = None
+            holding_account.type             = Account.TYPE_RIPPLE_HOLDING
+            holding_account.balance_in_drops = 0
+            holding_account.save()
+
+        # Get or create the MessageMe system account.
+
+        try:
+            system_account = Account.objects.get(
+                                    type=Account.TYPE_MESSAGEME)
+        except Account.DoesNotExist:
+            system_account = Account()
+            system_account.global_id        = None
+            system_account.type             = Account.TYPE_MESSAGEME
+            system_account.balance_in_drops = 0
+            system_account.save()
+
+        # Create the sender's account.
+
+        sender_account = Account()
+        sender_account.type             = Account.TYPE_USER
+        sender_account.global_id        = sender_profile.global_id
+        sender_account.balance_in_drops = 50 * XRP
+        sender_account.save()
+
+        # Create a transaction for the sender's account.
+
+        trans = Transaction()
+        trans.timestamp               = timezone.now()
+        trans.created_by              = sender_account
+        trans.status                  = Transaction.STATUS_SUCCESS
+        trans.type                    = Transaction.TYPE_DEPOSIT
+        trans.amount_in_drops         = 50 * XRP
+        trans.debit_account           = holding_account
+        trans.credit_account          = sender_account
+        trans.ripple_transaction_hash = None
+        trans.message_hash            = None
+        trans.description             = None
+        trans.error                   = None
+        trans.save()
+
+        # Create the recipient's account.
+
+        recipient_account = Account()
+        recipient_account.type             = Account.TYPE_USER
+        recipient_account.global_id        = recipient_profile.global_id
+        recipient_account.balance_in_drops = 0
+        recipient_account.save()
+
+        # Remember the system account's current balance, so we can check that
+        # it's been updated.
+
+        current_system_account_balance = system_account.balance_in_drops
 
         # Create a conversation between these two users.
 
@@ -55,6 +118,8 @@ class MessageTestCase(django.test.TestCase):
                          'recipient_account_id' : recipient_account_id,
                          'sender_text'          : sender_text,
                          'recipient_text'       : recipient_text,
+                         'system_charge'        : 1 * XRP,
+                         'recipient_charge'     : 2 * XRP,
                         })
 
         # Calculate the HMAC authentication headers we need to make an
@@ -67,12 +132,6 @@ class MessageTestCase(django.test.TestCase):
             account_secret=sender_profile.account_secret
         )
 
-        # Install the mock version of the rippleInterface.request() function.
-        # This prevents the rippleInterface module from submitting a message to
-        # the Ripple network.
-
-        rippleMock = apiTestHelpers.install_mock_ripple_interface()
-
         # Ask the "POST /api/message" endpoint to create the message.
 
         response = self.client.post("/api/message",
@@ -80,13 +139,6 @@ class MessageTestCase(django.test.TestCase):
                                     content_type="application/json",
                                     **headers)
         self.assertEqual(response.status_code, 202)
-
-        # Check that the rippleInterface.request() function was called to sign
-        # and then submit the message.
-
-        self.assertEqual(rippleMock.call_count, 2)
-        self.assertEqual(rippleMock.call_args_list[0][0][0], "sign")
-        self.assertEqual(rippleMock.call_args_list[1][0][0], "submit")
 
         # Check that a Message record has been created for this message.
 
@@ -105,12 +157,33 @@ class MessageTestCase(django.test.TestCase):
         self.assertEqual(message.recipient_text, recipient_text)
         self.assertIsNone(message.action)
         self.assertIsNone(message.action_params)
-        self.assertEqual(message.amount_in_drops, 1)
-        self.assertEqual(message.status, Message.STATUS_PENDING)
+        self.assertEqual(message.system_charge, 1 * XRP)
+        self.assertEqual(message.recipient_charge, 2 * XRP)
+        self.assertEqual(message.status, Message.STATUS_SENT)
         self.assertIsNone(message.error)
+
+        # Check that the user's account was decreased by 3 XRP to cover the
+        # two message charges.
+
+        sender_account = Account.objects.get(id=sender_account.id)
+        self.assertEqual(sender_account.balance_in_drops, 47 * XRP)
+
+        # Check that the recipient's account was increased by the recipient
+        # charge of 2 XRP.
+
+        recipient_account = Account.objects.get(id=recipient_account.id) # Reload.
+        self.assertEqual(recipient_account.balance_in_drops, 2 * XRP)
+
+        # Check that the MessageMe system account was increased by the system
+        # charge of 1 XRP.
+
+        system_account = Account.objects.get(id=system_account.id) # Reload.
+        self.assertEqual(system_account.balance_in_drops,
+                         current_system_account_balance + 1 * XRP)
 
     # -----------------------------------------------------------------------
 
+    @unittest.skip("Disabled until we support actions again.")
     def test_send_message_with_action(self):
         """ Test the logic of sending a message with an attached action.
         """
@@ -144,7 +217,8 @@ class MessageTestCase(django.test.TestCase):
                          'recipient_text'       : recipient_text,
                          'action'               : "SEND_XRP",
                          'action_params'        : json.dumps({'amount' : 10}),
-                         'amount_in_drops'      : 10,
+                         'system_charge'        : 0,
+                         'recipient_charge'     : 0,
                         })
 
         # Calculate the HMAC authentication headers we need to make an
@@ -158,8 +232,8 @@ class MessageTestCase(django.test.TestCase):
         )
 
         # Install the mock version of the rippleInterface.request() function.
-        # This prevents the rippleInterface module from submitting a message to
-        # the Ripple network.
+        # This prevents the rippleInterface module from submitting a
+        # transaction to the Ripple network to complete this action.
 
         rippleMock = apiTestHelpers.install_mock_ripple_interface()
 
@@ -172,7 +246,7 @@ class MessageTestCase(django.test.TestCase):
         self.assertEqual(response.status_code, 202)
 
         # Check that the rippleInterface.request() function was called to sign
-        # and then submit the message.
+        # and then submit the transaction.
 
         self.assertEqual(rippleMock.call_count, 2)
         self.assertEqual(rippleMock.call_args_list[0][0][0], "sign")
@@ -195,7 +269,8 @@ class MessageTestCase(django.test.TestCase):
         self.assertEqual(message.recipient_text, recipient_text)
         self.assertEqual(message.action, "SEND_XRP")
         self.assertEqual(message.action_params, json.dumps({'amount' : 10}))
-        self.assertEqual(message.amount_in_drops, 10)
+        self.assertEqual(message.system_charge, 0)
+        self.assertEqual(message.recipient_charge, 0)
         self.assertEqual(message.status, Message.STATUS_PENDING)
         self.assertIsNone(message.error)
 

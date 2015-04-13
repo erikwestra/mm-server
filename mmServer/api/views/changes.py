@@ -218,7 +218,8 @@ def changes_GET(request):
             msg_data['action']              = message.action
             msg_data['action_params']       = message.action_params
             msg_data['action_processed']    = message.action_processed
-            msg_data['amount_in_drops']     = message.amount_in_drops
+            msg_data['system_charge']       = message.system_charge
+            msg_data['recipient_charge']    = message.recipient_charge
             msg_data['status']              = Message.STATUS_MAP[message.status]
 
             if message.error != None:

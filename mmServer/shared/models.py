@@ -53,6 +53,7 @@ class ModelWithUpdateID(models.Model):
 class Profile(ModelWithUpdateID):
     """ A User's profile.
     """
+    id                                   = models.AutoField(primary_key=True)
     global_id                            = models.TextField(db_index=True,
                                                             unique=True)
     deleted                              = models.BooleanField(default=False)
@@ -88,6 +89,7 @@ class Picture(ModelWithUpdateID):
         Note that the 'picture_data' field holds the image data in base64
         encoding.
     """
+    id               = models.AutoField(primary_key=True)
     picture_id       = models.TextField(db_index=True, unique=True)
     deleted          = models.BooleanField(default=False)
     account_secret   = models.TextField()
@@ -99,6 +101,7 @@ class Picture(ModelWithUpdateID):
 class Conversation(ModelWithUpdateID):
     """ A conversation between two users.
     """
+    id              = models.AutoField(primary_key=True)
     global_id_1    = models.TextField(db_index=True)
     global_id_2    = models.TextField(db_index=True)
     encryption_key = models.TextField()
@@ -134,6 +137,7 @@ class Message(ModelWithUpdateID):
                   STATUS_READ    : "READ",
                   STATUS_FAILED  : "FAILED"}
 
+    id                   = models.AutoField(primary_key=True)
     conversation         = models.ForeignKey(Conversation)
     hash                 = models.TextField(null=True, db_index=True)
     timestamp            = models.DateTimeField()
@@ -146,10 +150,88 @@ class Message(ModelWithUpdateID):
     action               = models.TextField(null=True)
     action_params        = models.TextField(null=True)
     action_processed     = models.BooleanField(default=False)
-    amount_in_drops      = models.IntegerField(default=1)
+    system_charge        = models.IntegerField(default=0)
+    recipient_charge     = models.IntegerField(default=0)
     status               = models.IntegerField(choices=STATUS_CHOICES,
                                                db_index=True)
     error                = models.TextField(null=True)
+
+#############################################################################
+
+class Account(models.Model):
+    """ A user's MessageMe account.
+    """
+    TYPE_USER           = "U"
+    TYPE_MESSAGEME      = "M"
+    TYPE_RIPPLE_HOLDING = "R"
+
+    TYPE_CHOICES = ((TYPE_USER,           "USER"),
+                    (TYPE_MESSAGEME,      "MESSAGEME"),
+                    (TYPE_RIPPLE_HOLDING, "RIPPLE_HOLDING"))
+
+    TYPE_MAP = {TYPE_USER           : "USER",
+                TYPE_MESSAGEME      : "MESSAGEME",
+                TYPE_RIPPLE_HOLDING : "RIPPLE_HOLDING"}
+
+    id               = models.AutoField(primary_key=True)
+    type             = models.CharField(max_length=1, choices=TYPE_CHOICES,
+                                        db_index=True)
+    global_id        = models.TextField(null=True, db_index=True, unique=True)
+    balance_in_drops = models.IntegerField()
+
+#############################################################################
+
+class Transaction(models.Model):
+    """ A single transaction against a user's MessageMe account.
+    """
+    STATUS_PENDING = 0
+    STATUS_SUCCESS = 1
+    STATUS_FAILED  = 2
+
+    STATUS_CHOICES = ((STATUS_PENDING, "PENDING"),
+                      (STATUS_SUCCESS, "SUCCESS"),
+                      (STATUS_FAILED,  "FAILED"))
+
+    STATUS_MAP = {STATUS_PENDING : "PENDING",
+                  STATUS_SUCCESS : "SUCCESS",
+                  STATUS_FAILED  : "FAILED"}
+
+    TYPE_DEPOSIT          = "D"
+    TYPE_WITHDRAWAL       = "W"
+    TYPE_SYSTEM_CHARGE    = "S"
+    TYPE_RECIPIENT_CHARGE = "R"
+    TYPE_ADJUSTMENT       = "A"
+
+    TYPE_CHOICES = ((TYPE_DEPOSIT,          "DEPOSIT"),
+                    (TYPE_WITHDRAWAL,       "WITHDRAWAL"),
+                    (TYPE_SYSTEM_CHARGE,    "SYSTEM_CHARGE"),
+                    (TYPE_RECIPIENT_CHARGE, "RECIPIENT_CHARGE"),
+                    (TYPE_ADJUSTMENT,       "ADJUSTMENT"))
+
+    TYPE_MAP = {TYPE_DEPOSIT          : "DEPOSIT",
+                TYPE_WITHDRAWAL       : "WITHDRAWAL",
+                TYPE_SYSTEM_CHARGE    : "SYSTEM_CHARGE",
+                TYPE_RECIPIENT_CHARGE : "RECIPIENT_CHARGE",
+                TYPE_ADJUSTMENT       : "ADJUSTMENT"}
+
+    id                      = models.AutoField(primary_key=True)
+    timestamp               = models.DateTimeField(db_index=True)
+    created_by              = models.ForeignKey(Account,
+                                      related_name="transactions_created_by_me")
+    status                  = models.IntegerField(choices=STATUS_CHOICES,
+                                                  db_index=True)
+    type                    = models.CharField(max_length=1,
+                                               choices=TYPE_CHOICES,
+                                               db_index=True)
+    amount_in_drops         = models.IntegerField()
+    debit_account           = models.ForeignKey(Account,
+                                       related_name="debit_transactions")
+    credit_account          = models.ForeignKey(Account,
+                                       related_name="credit_transactions")
+    ripple_transaction_hash = models.TextField(null=True)
+    message_hash            = models.TextField(null=True)
+    description             = models.TextField(null=True)
+    error                   = models.TextField(null=True)
 
 #############################################################################
 
@@ -178,6 +260,7 @@ class NonceValue(models.Model):
         be long enough to ensure that HMAC-authenticated requests cannot be
         resent.  A period of a year is probably a good value.
     """
+    id        = models.AutoField(primary_key=True)
     nonce     = models.TextField(db_index=True, unique=True)
     timestamp = models.DateTimeField()
 

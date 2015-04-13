@@ -803,6 +803,8 @@ class ChangesTestCase(django.test.TestCase):
                          'recipient_account_id' : recipient_account_id,
                          'sender_text'          : sender_text,
                          'recipient_text'       : recipient_text,
+                         'system_charge'        : 0,
+                         'recipient_charge'     : 0,
                         })
 
         # Calculate the HMAC authentication headers we need to make an

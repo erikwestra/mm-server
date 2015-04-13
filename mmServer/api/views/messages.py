@@ -147,7 +147,8 @@ def messages_GET(request):
                        'action'               : msg.action,
                        'action_params'        : msg.action_params,
                        'action_processed'     : msg.action_processed,
-                       'amount_in_drops'      : msg.amount_in_drops,
+                       'system_charge'        : msg.system_charge,
+                       'recipient_charge'     : msg.recipient_charge,
                        'status'               : status}
             if msg.error:
                 message['error'] = msg.error

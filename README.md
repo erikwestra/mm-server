@@ -1,4 +1,6 @@
-# `mmServer` #
+<center>
+    <h1><pre>mmServer</pre></h1>
+</center>
 
 `mmServer` is a Django project that implements the server-side logic for the
 MessageMe system.  The `mmServer` system provides a simple API that allows for
@@ -10,7 +12,21 @@ the following server-side functionality:
 <br/><br/>
  * Storing, retrieving and updating profile pictures.
 <br/><br/>
- * Storing the encryption key used by a conversation between two users.
+ * Keeping track of a user's list of conversations.
+<br/><br/>
+ * Keeping track of the messages for a given conversation.
+<br/><br/>
+ * Sending messages.
+<br/><br/>
+ * Keeping track of each user's account balance.
+<br/><br/>
+ * Making deposits and withdrawals against the user's MessageMe account.
+<br/><br/>
+ * Charging users for the messages they send.
+
+In addition to the API, the `mmServer` system provides an **Admin Interface**
+which lets suitably authorised people view data and enter manual adjustments
+against accounts.
 
 Additional functionality may be added in the future.
 
@@ -119,6 +135,143 @@ object with the following attributes:
 Note that the profile object returned by the API will only contain the
 publically-visible portions of the profile if the user is attempting to view
 another user's profile.
+
+## User Accounts ##
+
+Each message sent through the MessageMe system has two different types of
+charges associated with it: a **system charge** which is the amount which must
+be paid to MessageMe for the message to be sent, and a **recipient charge**
+which is the amount which must be paid to the message recipient for them to
+accept the message.  For a given message, the system and recipient charges can
+either be zero or a positive amount -- some messages may incur both a system
+and a recipient charge, some may incur just a system charge, some may incur
+just a recipient charge, and some messages may be free.  Charges are always
+measured in drops (millions of an XRP).
+
+As messages are sent, these charges are incurred by the message sender.  The
+charges are then paid to either the message recipient, or to MessageMe itself.
+To keep track of these payments, each user has their own **account** within the
+MessageMe system.  Each account has a **current balance**, and a list of
+**transactions** recording the various deposits and withdrawals made against
+that account.  The user is able to **deposit** funds into their MessageMe
+account by transferring funds from their Ripple account to MessageMe, and
+MessageMe will automatically **withdraw** funds as required to cover the
+charges incurred while sending the user's messages.  If the user attempts to
+send a message when insufficient funds are available in their account, the
+message will fail with an `Insufficent Funds` error.
+
+Recipient charges are paid to the message recipient, in the form of a deposit
+into their account.  Similarly, MessageMe itself has its own internal account,
+and all system charges are deposited into that account.  Another internal
+account, the **Ripple Holding Account**, is used to keep track of deposits made
+to MessageMe via the Ripple network -- this account is needed because the
+accounts within MessageMe follow standard double-entry bookeeping rules where
+every transaction involves both a credit and a debit.
+
+Funds can also be withdrawn from the user's MessageMe account and sent back to
+the user's Ripple account.  This can be done to retrieve funds given to
+MessageMe, or to take out funds which have been received in the form of
+recipient charges.
+
+Internally, each account has the following information associated with it:
+
+> `account_id`
+> 
+> > A unique ID number for this account.
+> 
+> `type`
+> 
+> > A string identifying the type of account.  The following account types are
+> > supported:
+> > 
+> > > `USER`
+> > > 
+> > > > A user account.
+> > > 
+> > > `MESSAGEME`
+> > > 
+> > > > The MessageMe account.
+> > >
+> > > `RIPPLE_HOLDING`
+> > > 
+> > > > The Ripple holding account.
+> 
+> `global_id`
+> 
+> > For a user account, this is the user's global ID.  Note that this is left
+> > blank for non-user accounts.
+> 
+> `balance`
+> 
+> > The account's current balance.  This is updated by the server whenever a
+> > new transaction is created for this account.
+
+Each account also has a list of transactions associated with it.  For each
+transaction, the following information will be stored:
+
+> `transaction_id`
+> 
+> > A unique ID number associated with this transaction.
+> 
+> `timestamp`
+> 
+> > The date and time when this transaction was made, in UTC.
+> 
+> `type`
+> 
+> > A string indicating the type of transaction.  The following type values are
+> > currently supported:
+> > 
+> > > `DEPOSIT`
+> > > 
+> > > > A deposit received from the user to "top up" their MessageMe account.
+> > > > This corresponds to funds being transferred from the user's Ripple
+> > > > account to the MessageMe Ripple Holding account.
+> > > 
+> > > `WITHDRAWAL`
+> > > 
+> > > > A withdrawal of funds from the user's account.  This corresponds to
+> > > > funds being transferred from the MessageMe Ripple Holding account to
+> > > > the user's Ripple account.
+> > > 
+> > > `SYSTEM_CHARGE`
+> > > 
+> > > > A system charge, debiting the user's account and crediting the
+> > > > MessageMe account.
+> > > 
+> > > `RECIPIENT_CHARGE`
+> > > 
+> > > > A recipient charge, debiting the user's account and crediting the
+> > > > MessageMe account of the recipient.
+> > > 
+> > > `ADJUSTMENT`
+> > > 
+> > > > A manual adjustment.  These are created by a system administrator to
+> > > > correct mistakes.
+> 
+> `amount`
+> 
+> > The amount of the transaction, in drops.
+> 
+> `debit_account`
+> 
+> > The account which was debited by this transaction.
+> 
+> `credit_account`
+> 
+> > The account which was credited by this transaction.
+> 
+> `message_hash`
+> 
+> > If this transaction was associated with a message, this is the hash value
+> > uniquely identifying the message.  This will be blank for transactions that
+> > are not associated with messages.
+> 
+> `description`
+> 
+> > A textual description of this transaction.  This will generally be left
+> > blank, except for manual adjustments where this is used to explain why the
+> > adjustment was made.
 
 
 ## Profile Pictures ##
@@ -339,11 +492,15 @@ Within the API, a message consists of the following information:
 > 
 > > Has this action been processed by the recipient?
 > 
-> `amount_in_drops`
+> `system_charge`
 > 
-> > The amount to send to the recipient of this message, as an integer number
-> > of drops.  If this is not specified, the message will have an amount of 1
-> > drop.  Note that the minimum that can be sent is 1 drop.
+> > The amount to be paid to MessageMe itself for sending this message, as an
+> > integer number of drops.
+> 
+> `recipient_charge`
+> 
+> > The amount to be paid to the recipient of the message for sending this
+> > message, as an integer number of drops.
 > 
 > `status`
 > 
@@ -351,8 +508,11 @@ Within the API, a message consists of the following information:
 > > 
 > > > `PENDING`
 > > > 
-> > > > The message has been submitted to the Ripple network, but the
-> > > > underlying transaction has not yet gone through.
+> > > > The message has been accepted, but is waiting for an associated Ripple
+> > > > transaction to be confirmed before the message can go through.  Note
+> > > > that this status only applies to messages which have a Ripple
+> > > > transaction associated with them; ordinary messages will immediately be
+> > > > given a status of `SENT` as they go through right away.
 > > > 
 > > > `SENT`
 > > > 
@@ -820,7 +980,8 @@ containing the following JSON-format data:
 >           text: "...",
 >           action: "...",
 >           action_params: "...",
->           amount_in_drops: 100,
+>           system_charge: 5,
+>           recipient_charge: 0,
 >           status: "...",
 >           error: "..."},
 >          ...
@@ -861,10 +1022,11 @@ object:
 >           recipient_text: "...",
 >           action: "...",
 >           action_params: "...",
->           amount_in_drops: 100}
+>           system_charge: 5,
+>           recipient_charge: 0}
 >     }
 
-**'_Notes_'**:
+**_Notes_**:
  
 > * The sending user must have an existing profile for this API endpoint to
 >   work.
@@ -878,23 +1040,23 @@ object:
 > * The `action` and `action_params` fields are only required if the message
 >   has an action associated with it.
 > <br/></br>
-> * The `amount_in_drops` field is only needed if you wish to send funds
->   along with the message.
+> * The `system_charge` and `recipient_charge` fields should be filled in with
+>   the appropriate charges for this message.  Before the message is delivered,
+>   these charges will be deducted from the sender's account.
 
 If the message was accepted, the API endpoint will return an HTTP response code
-of 202 (Accepted).  If the message was rejected right away, the API endpoint
-will return an HTTP response code of 400 (Bad Request), and the body of the
-response will be a string containing the error returned by the Ripple server.
+of 202 (Accepted).  For straightforward messages, the message is accepted
+immediately, but for messages which involve a payment-related action, the
+message will be pending until that action is completed.
 
-Note that the message will initially be given a status of "PENDING".  The
-server will then monitor the message, and update the message status as
-appropriate depending on what happens to the message.  The various status
-values for the message will all be received if the client is polling for
-message updates.
-
-If the HMAC authentication details are missing or invalid, the API endpoint
-will return an HTTP response code of 403 (Forbidden).  If some required fields
-are missing, the API will return a response code of 400 (Bad Request).
+If there was something wrong with the request (for example, if the destination
+account didn't exist, or a required field was missing), the API will return a
+response code of 400 (Bad Request), and the body of the response will be a
+string describing why the request failed.  If the HMAC authentication details
+are missing or invalid, the API endpoint will return an HTTP response code of
+403 (Forbidden).  If the message could not be sent because the sender has
+insufficient funds in their account, the API endpoint will return an HTTP
+response code of 402 (Payment Required).
 
 **`PUT api/message`**
 
@@ -930,13 +1092,315 @@ HTTP response code of 403 (Forbidden).  If some required fields are missing,
 the API will return a response code of 400 (Bad Request).
 
 
+### Endpoints for the Account Resource ###
+
+**`GET api/account`**
+
+Returns the user's current MessageMe account details.  This API endpoint must
+use HMAC authentication.  The following query-string parameters are supported:
+
+> `global_id` _(required)_
+> 
+> > The current user's global ID.
+> 
+> `transactions` _(optional)_
+> 
+> > A string indicating the types of transactions to return.  A value of "all"
+> > (in lowercase) will cause every type of transaction to be returned.
+> > Otherwise, each letter in the `transactions` parameter corresponds to a
+> > single transaction type:
+> > 
+> > > `D` = `DEPOSIT`  
+> > > `W` = `WITHDRAWAL`  
+> > > `S` = `SYSTEM_CHARGE`  
+> > > `R` = `RECIPIENT_CHARGE`  
+> > > `A` = `ADJUSTMENT`
+> > 
+> > For example, a `transactions` value of "DWA" would return all `DEPOSIT`,
+> > `WITHDRAWAL` and `ADJUSTMENT` transactions.
+> > 
+> > If the `transactions` parameter is not supplied, then no transactions will
+> > be be returned.
+> 
+> `tpp` _(optional)_
+> 
+> > The maximum number of transactions to return per request.  If this is not
+> > specified, a maximum of 20 transactions will be returned in one go.
+> 
+> `page` _(optional)_
+> 
+> > The page number of the transactions to return.  Transactions are turned in
+> > reverse date order (that is, the most recent transaction will be returned
+> > first), and the first page of transactions has a page number of zero.  To
+> > obtain more transactions, re-issue the API call with an increasing `page`
+> > value until no more transactions are returned.
+> > 
+> > If the `page` parameter is not supplied, a default value of zero will be
+> > used.  This has the effect of returning the first page (ie, the most
+> > recent) transactions.
+> 
+> `totals`
+> 
+> > A string indicating the type of transaction totals to include in the
+> > results.  The following values are currently supported:
+> > 
+> > > `yes`
+> > > 
+> > > > Calculate and return the total for each type of transaction.
+> > > 
+> > > `charges_by_conversation`
+> > > 
+> > > > Calculate and return the total for each `SYSTEM_CHARGE` and
+> > > > `RECIPIENT_CHARGE` transaction, grouped by conversation.
+> > 
+> > If the `totals` parameter is not supplied then no totals will be returned.
+
+Upon completion, this API endpoint will return an HTTP response code of 200
+(OK) if the request was successful.  The body of the response will be a string
+containing the following JSON-formatted object:
+
+>     {account: {
+>          balance: ...,
+>          transactions: [...],
+>          totals: {...}
+>         }
+>     }
+
+The `balance` field will hold the user's current account balance, in drops.
+The `transactions` array will only be returned if the `transactions` parameter
+was supplied, and the `totals` object will only be returned if the `totals`
+parameter was supplied.
+
+Each entry in the `transactions` array will be an object with the following
+fields:
+
+> `transaction_id`
+> 
+> > A unique ID number associated with this transaction.
+> 
+> `timestamp`
+> 
+> > The date and time when this transaction was made, as a unix timestamp value
+> > in UTC.
+> 
+> `type`
+> 
+> > A string indicating the type of transaction.  The following type values are
+> > currently supported:
+> > 
+> > > `DEPOSIT`
+> > > 
+> > > > A deposit received from the user to "top up" their MessageMe account.
+> > > > This corresponds to funds being transferred from the user's Ripple
+> > > > account to the MessageMe Ripple Holding account.
+> > > 
+> > > `WITHDRAWAL`
+> > > 
+> > > > A withdrawal of funds from the user's account.  This corresponds to
+> > > > funds being transferred from the MessageMe Ripple Holding account to
+> > > > the user's Ripple account.
+> > > 
+> > > `SYSTEM_CHARGE`
+> > > 
+> > > > A system charge, debiting the user's account and crediting the
+> > > > MessageMe account.
+> > > 
+> > > `RECIPIENT_CHARGE`
+> > > 
+> > > > A recipient charge, debiting the user's account and crediting the
+> > > > MessageMe account of the recipient.
+> > > 
+> > > `ADJUSTMENT`
+> > > 
+> > > > A manual adjustment.  These are created by a system administrator to
+> > > > correct mistakes.
+> 
+> `amount`
+> 
+> > The amount of the transaction, in drops.
+> 
+> `other_account_type`
+> 
+> > The type of the other account involved in this transaction.  One of:
+> > 
+> > > `USER`
+> > > 
+> > > > A user account.
+> > > 
+> > > `MESSAGEME`
+> > >
+> > > > The MessageMe account.
+> > > 
+> > > `RIPPLE_HOLDING`
+> > > 
+> > > > The Ripple holding account.
+> 
+> `other_account_global_id`
+> 
+> > For a user account, this will be the global ID of the owner of the other
+> > account involved in this transaction.  Note that this is only supplied
+> > where the `other_account_type` is `USER`.
+> 
+> `message_hash`
+> 
+> > If this transaction was associated with a message, this is the hash value
+> > uniquely identifying the message.  This field will not be present for
+> > transactions that are not associated with messages.
+
+Note that only those transactions with a `status` value of "SUCCESS" will be
+included in this list. Pending and failed transactions will never be included.
+
+If the `totals` parameter had a value of `yes`, the returned `totals` object
+will have the following fields:
+
+>     {deposits: 999,
+>      withdrawals: 999,
+>      system_charges: 999,
+>      recipient_charges: 999,
+>      adjustments: 999}
+
+The numbers will be the total value of all the transactions of that type,
+measured in drops.
+
+If the `totals` parameter had a value of `charges_by_conversation`, the
+returned `totals` object will contain one field for each of the user's
+conversations.  The field's name will be the global ID of the other user
+involved in the conversation, and the field's value will be the total charges
+assigned to that conversation, in drops.
+
+> _**Note**: the semantics of the `totals` parameter is likely to change._
+
+
+### Endpoints for the Transaction Resource ###
+
+**`POST api/transaction`**
+
+Submit a transaction to the user's MessageMe account.  This API endpoint must
+use HMAC authentication.  The body of the request should be a string containing
+the following JSON-formatted object:
+
+>     {global_id: "...",
+>      ripple_account: "...",
+>      type: "...",
+>      amount: 100,
+>      description: "..."
+>     }
+
+The JSON-format object should include the following fields:
+
+> `global_id` _(required)_
+> 
+> > The current user's global ID.
+> 
+> `ripple_account` _(required)_
+> 
+> > The current user's Ripple account address.
+> 
+> `type` _(required)_
+> 
+> > A string indicating the type of transactions to submit.  The following
+> > transaction types are currently supported:
+> > 
+> > > `DEPOSIT`  
+> > > `WITHDRAWAL`  
+> 
+> `amount` _(required)_
+> 
+> > The desired amount, in drops.
+> 
+> `description` _(optional)_
+> 
+> > An optional description to associate with this transaction.
+
+If the HMAC authentication details are missing or invalid, the API endpoint
+will return an HTTP response code of 403 (Forbidden). If some required fields
+are missing, the API will return a response code of 400 (Bad Request).
+
+If the request was valid, the API endpoint will return an HTTP response code of
+200 (OK).  In this case, the body of the response will consist of a JSON-format
+object describing the results of the request.  If a new transaction was
+successfully created, the JSON object will look like the following:
+
+>     {status: "PENDING",
+>      transaction_id: 12345}
+
+If the transaction could not be created for some reason, the following JSON
+data will be returned:
+
+>     {status: "FAILED",
+>      transaction_id: 12345,
+>      error: "..."}
+
+In this case, the `error` field will be a string describing why the transaction
+failed.
+
+For a manual deposit, the server will attempt to transfer the funds from the
+user's Ripple account to the MessageMe Ripple Holding Account.  Once this
+Ripple transaction has gone through, the user's MessageMe account will be
+credited by the same amount.
+
+For a manual withdrawal, the server will first check to see that the user's
+MessageMe account has sufficient funds to cover the withdrawal.  If it does,
+the user's MessageMe account will be debited by this amount, and a Ripple
+transaction will be initiated transferring the funds from the Ripple Holding
+Account back into the user's own Ripple account.  If this transaction fails for
+any reason, then the funds will be credited back into the user's MessageMe
+account.
+
+Because these processes take time, the associated `DEPOSIT` or `WITHDRAWAL`
+transaction will initially be given a status of `PENDING`.  You can then check
+the final status of the transaction by polling the `GET api/transaction`
+endpoint to see when the transaction becomes finalized.
+
+**`GET api/transaction`**
+
+Return the current status of a single transaction.  The following query-string
+parameters are supported:
+
+> `global_id` _(required)_
+> 
+> > The current user's global ID.
+> 
+> `transaction_id` _(required)_
+> 
+> > The ID of the desired transaction.
+
+If the HMAC authentication details are missing or invalid, the API endpoint
+will return an HTTP response code of 403 (Forbidden). If some required fields
+are missing, the API will return a response code of 400 (Bad Request).  If the
+given transaction is missing, the API will return an HTTP response code of 404
+(Not Found).  If the given transaction is not associated with the given user's
+MessageMe account, the API endpoint will return an HTTP response code of 400
+(Bad Request).
+
+If the request was valid, the API endpoint will return an HTTP response code of
+200 (OK).  In this case, the body of the response will consist of a JSON-format
+object describing the current status of the given transaction.  If the
+transaction is still pending, the following data will be returned:
+
+>     {status: "PENDING"}
+
+If the transaction was successful, the following will be returned:
+
+>     {status: "SUCCESS"}
+
+If the transaction failed to go through for some reason, the following JSON
+data will be returned:
+
+>     {status: "FAILED",
+>      error: "..."}
+
+In this case, the `error` field will be a string describing why the transaction
+failed.
+
+
 ### Polling for Changes ###
 
 **`GET api/changes`**
 
 Return a list of everything that has changed since the last time we polled for
 changes.  This API endpoint must use HMAC authentication.  The following
-query-string parameter are supported:
+query-string parameters are supported:
 
 > `my_global_id` _(required)_
 > 

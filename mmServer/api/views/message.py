@@ -16,7 +16,7 @@ import simplejson as json
 
 from mmServer.shared.models import *
 from mmServer.shared.lib    import utils, rippleInterface, encryption
-from mmServer.shared.lib    import messageHandler
+from mmServer.shared.lib    import messageHandler, transactionHandler
 
 #############################################################################
 
@@ -96,10 +96,15 @@ def message_POST(request):
     else:
         action_params = None
 
-    if "amount_in_drops" in data:
-        amount_in_drops = data['amount_in_drops']
+    if "system_charge" not in data:
+        return HttpResponseBadRequest("Missing 'system_charge' field.")
     else:
-        amount_in_drops = 1 # Hardwired default.
+        system_charge = data['system_charge']
+
+    if "recipient_charge" not in data:
+        return HttpResponseBadRequest("Missing 'recipient_charge' field.")
+    else:
+        recipient_charge = data['recipient_charge']
 
     try:
         senders_profile = Profile.objects.get(global_id=sender_global_id)
@@ -138,68 +143,113 @@ def message_POST(request):
         conversation.num_unread_2   = 0
         conversation.save()
 
-    # Encrypt the message using the conversation's encryption key.
+    # Calculate the hash value to use for our message.
 
-    encrypted_message = encryption.encrypt(conversation.encryption_key,
-                                           recipient_text)
+    message_hash = uuid.uuid4().hex
 
-    # Create the Ripple transaction to be sent.
+    # Withdraw the transaction fees from the user's account.  If they don't
+    # have enough funds to cover the fees, reject the message.
 
-    memos = []
-    memos.append({'Memo' : {
-                    'MemoType' : encryption.hex_encode("MM_VERSION"),
-                    'MemoData' : encryption.hex_encode("1")}}) # Hardwired.
-    memos.append({'Memo' : {
-                    'MemoType' : encryption.hex_encode("MM_MESSAGE"),
-                    'MemoData' : encryption.hex_encode(encrypted_message)}})
+    with dbHelpers.exclusive_access(Account, Transaction):
 
-    transaction = {'TransactionType' : "Payment",
-                   'Account'         : sender_account_id,
-                   'Destination'     : recipient_account_id,
-                   'Amount'          : str(amount_in_drops),
-                   'Memos'           : memos
-                  }
+        # Get the sender's account, creating it if necessary.
 
-    # Ask the Ripple network to sign our message, using the sending user's
-    # account secret.
+        try:
+            sender_account = Account.objects.get(type=Account.TYPE_USER,
+                                                 global_id=sender_global_id)
+        except Account.DoesNotExist:
+            sender_account = Account()
+            sender_account.type             = Account.TYPE_USER
+            sender_account.global_id        = sender_global_id
+            sender_account.balance_in_drops = 0
+            sender_account.save()
 
-    error = None # initially.
+        # If the sender doesn't have enough money in their account, reject the
+        # message.
 
-    response = rippleInterface.request("sign",
-                                       tx_json=transaction,
-                                       secret=senders_profile.account_secret,
-                                       fee_mult_max=1000000)
-    if response == None:
-        error = "Ripple server failed to respond when signing the transaction"
-    elif response['status'] != "success":
-        error = "Ripple server error signing transaction: " + response['error']
+        if sender_account.balance_in_drops < system_charge + recipient_charge:
+            return HttpResponse(status=402) # 402 = Payment required.
 
-    # Now attempt to submit the transaction to the Ripple ledger.
+        if recipient_charge > 0:
 
-    if error == None:
-        tx_blob = response['result']['tx_blob']
+            # Get the recipient's account, creating it if necessary.
 
-        response = rippleInterface.request("submit",
-                                           tx_blob=tx_blob,
-                                           fail_hard=True)
+            try:
+                recipient_account = Account.objects.get(
+                                                type=Account.TYPE_USER,
+                                                global_id=recipient_global_id)
+            except Account.DoesNotExist:
+                recipient_account = Account()
+                recipient_account.type             = Account.TYPE_USER
+                recipient_account.global_id        = recipient_global_id
+                recipient_account.balance_in_drops = 0
+                recipient_account.save()
 
-        if response == None:
-            error = "Ripple server failed to respond when submitting " \
-                  + "transaction"
-        elif response['status'] != "success":
-            error = "Ripple server error submittting transaction: " \
-                  + response['error']
+            # Create a transaction deducting the recipient charge from the
+            # sender's account.
 
-    # If there's an error, tell the user about it.
+            t = Transaction()
+            t.timestamp               = timezone.now()
+            t.created_by              = sender_account
+            t.status                  = Transaction.STATUS_SUCCESS
+            t.type                    = Transaction.TYPE_RECIPIENT_CHARGE
+            t.amount_in_drops         = recipient_charge
+            t.debit_account           = sender_account
+            t.credit_account          = recipient_account
+            t.ripple_transaction_hash = None
+            t.message_hash            = message_hash
+            t.description             = None
+            t.error                   = None
+            t.save()
 
-    if error != None:
-        return HttpResponseBadRequest(error)
+            # Update the recipient's account balance.
+
+            transactionHandler.update_account_balance(recipient_account)
+
+        if system_charge > 0:
+
+            # Get the MessageMe system account, creating it if necessary.
+
+            try:
+                system_account = Account.objects.get(type=Account.TYPE_MESSAGEME)
+            except Account.DoesNotExist:
+                system_account = Account()
+                system_account.type             = Account.TYPE_MESSAGEME
+                system_account.global_id        = None
+                system_account.balance_in_drops = 0
+                system_account.save()
+
+            # Create a transaction deducting the system charge from the
+            # sender's account.
+
+            t = Transaction()
+            t.timestamp               = timezone.now()
+            t.created_by              = sender_account
+            t.status                  = Transaction.STATUS_SUCCESS
+            t.type                    = Transaction.TYPE_SYSTEM_CHARGE
+            t.amount_in_drops         = system_charge
+            t.debit_account           = sender_account
+            t.credit_account          = system_account
+            t.ripple_transaction_hash = None
+            t.message_hash            = message_hash
+            t.description             = None
+            t.error                   = None
+            t.save()
+
+            # Update the MessageMe system account balance.
+
+            transactionHandler.update_account_balance(system_account)
+
+        # Update the sender's account balance.
+
+        if recipient_charge > 0 or system_charge > 0:
+            transactionHandler.update_account_balance(sender_account)
 
     # Finally, create the new Message object and tell the user the good news.
 
     message = Message()
     message.conversation         = conversation
-    message.hash                 = response['result']['tx_json']['hash']
+    message.hash                 = message_hash
     message.timestamp            = timezone.now()
     message.sender_global_id     = sender_global_id
     message.recipient_global_id  = recipient_global_id
@@ -209,8 +259,9 @@ def message_POST(request):
     message.recipient_text       = recipient_text
     message.action               = action
     message.action_params        = action_params
-    message.status               = Message.STATUS_PENDING
-    message.amount_in_drops      = amount_in_drops
+    message.system_charge        = system_charge
+    message.recipient_charge     = recipient_charge
+    message.status               = Message.STATUS_SENT
     message.error                = None
     message.save()
 

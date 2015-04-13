@@ -11,6 +11,10 @@ urlpatterns = patterns('',
 
     url(r'^profile/(?P<global_id>.*)$', 'mmServer.api.views.profile.endpoint'),
 
+    url(r'^account$', 'mmServer.api.views.account.endpoint'),
+
+    url(r'^transaction$', 'mmServer.api.views.transaction.endpoint'),
+
     url(r'^picture$',                    'mmServer.api.views.picture.endpoint'),
     url(r'^picture/(?P<picture_id>.*)$', 'mmServer.api.views.picture.endpoint'),
 
