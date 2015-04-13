@@ -260,8 +260,9 @@ def transaction_POST(request):
                 error = "Ripple server error submittting transaction: " \
                       + response['error']
 
-        transaction.ripple_transaction_hash = \
-            response['result']['tx_json']['hash']
+        if error == None:
+            transaction.ripple_transaction_hash = \
+                response['result']['tx_json']['hash']
 
     elif trans_type == Transaction.TYPE_WITHDRAWAL:
 
@@ -317,8 +318,9 @@ def transaction_POST(request):
                     error = "Ripple server error submittting transaction: " \
                           + response['error']
 
-        transaction.ripple_transaction_hash = \
-            response['result']['tx_json']['hash']
+        if error == None:
+            transaction.ripple_transaction_hash = \
+                response['result']['tx_json']['hash']
 
     # If our attempt to sign and submit the Ripple transaction failed, mark
     # our internal transaction as having failed right away.
