@@ -235,8 +235,8 @@ def transaction_POST(request):
 
         response = rippleInterface.request("sign",
                                            tx_json=ripple_transaction,
-                                           secret=profile.account_secret,
-                                           fee_mult_max=1000000)
+                                           secret=profile.account_secret)
+                                           #fee_mult_max=1000000)
         if response == None:
             error = "Ripple server failed to respond when signing " \
                   + "the transaction"
@@ -293,8 +293,8 @@ def transaction_POST(request):
 
             response = rippleInterface.request("sign",
                                                tx_json=ripple_transaction,
-                                               secret=profile.account_secret,
-                                               fee_mult_max=1000000)
+                                               secret=profile.account_secret)
+                                               #fee_mult_max=1000000)
             if response == None:
                 error = "Ripple server failed to respond when signing " \
                       + "the transaction"
