@@ -227,7 +227,8 @@ def transaction_POST(request):
             'TransactionType' : "Payment",
             'Account'         : ripple_account,
             'Destination'     : settings.RIPPLE_HOLDING_ACCOUNT,
-            'Amount'          : str(amount_in_drops)
+            'Amount'          : str(amount_in_drops),
+            'Fee'             : 100000,
         }
 
         # Ask the Ripple network to sign our transaction, using the user's
@@ -236,7 +237,6 @@ def transaction_POST(request):
         response = rippleInterface.request("sign",
                                            tx_json=ripple_transaction,
                                            secret=profile.account_secret)
-                                           #fee_mult_max=1000000)
         if response == None:
             error = "Ripple server failed to respond when signing " \
                   + "the transaction"
@@ -285,7 +285,8 @@ def transaction_POST(request):
                 'TransactionType' : "Payment",
                 'Account'         : settings.RIPPLE_HOLDING_ACCOUNT,
                 'Destination'     : ripple_account,
-                'Amount'          : str(amount_in_drops)
+                'Amount'          : str(amount_in_drops),
+                'Fee'             : 100000,
             }
 
             # Ask the Ripple network to sign our transaction, using the user's
@@ -294,7 +295,6 @@ def transaction_POST(request):
             response = rippleInterface.request("sign",
                                                tx_json=ripple_transaction,
                                                secret=profile.account_secret)
-                                               #fee_mult_max=1000000)
             if response == None:
                 error = "Ripple server failed to respond when signing " \
                       + "the transaction"
