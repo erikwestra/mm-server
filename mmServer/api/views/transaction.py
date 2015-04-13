@@ -228,7 +228,7 @@ def transaction_POST(request):
             'Account'         : ripple_account,
             'Destination'     : settings.RIPPLE_HOLDING_ACCOUNT,
             'Amount'          : str(amount_in_drops),
-            'Fee'             : 100000,
+            'Fee'             : "100000",
         }
 
         # Ask the Ripple network to sign our transaction, using the user's
@@ -286,7 +286,7 @@ def transaction_POST(request):
                 'Account'         : settings.RIPPLE_HOLDING_ACCOUNT,
                 'Destination'     : ripple_account,
                 'Amount'          : str(amount_in_drops),
-                'Fee'             : 100000,
+                'Fee'             : "100000",
             }
 
             # Ask the Ripple network to sign our transaction, using the user's
