@@ -245,7 +245,8 @@ def message_POST(request):
         if recipient_charge > 0 or system_charge > 0:
             transactionHandler.update_account_balance(sender_account)
 
-    # Finally, create the new Message object and tell the user the good news.
+    # Create the new Message object.  Note that the message is marked as "SENT"
+    # right away.
 
     message = Message()
     message.conversation         = conversation
@@ -264,6 +265,12 @@ def message_POST(request):
     message.status               = Message.STATUS_SENT
     message.error                = None
     message.save()
+
+    # Update the underlying conversation.
+
+    messageHandler.update_conversation(conversation)
+
+    # Finally, tell the caller the good news.
 
     return HttpResponse(status=202)
 
