@@ -207,8 +207,8 @@ def transaction_POST(request):
     transaction.status                  = Transaction.STATUS_PENDING #initially
     transaction.type                    = trans_type
     transaction.amount_in_drops         = amount_in_drops
-    transaction.debit_account           = holding_account
-    transaction.credit_account          = account
+    transaction.debit_account           = None # initially
+    transaction.credit_account          = None # initially
     transaction.ripple_transaction_hash = None # initially
     transaction.message_hash            = None
     transaction.description             = description
@@ -217,6 +217,12 @@ def transaction_POST(request):
     error = None # initially.
 
     if trans_type == Transaction.TYPE_DEPOSIT:
+
+        # A deposit transfers the funds from the Ripple holding account to the
+        # user's MessageMe account.
+
+        transaction.debit_account  = holding_account
+        transaction.credit_account = account
 
         # The user is making a deposit -> create a Ripple transaction to
         # transfer the funds into the MessageMe Ripple Holding Account.  We
@@ -276,6 +282,12 @@ def transaction_POST(request):
             error = "Insufficient funds"
 
         if error == None:
+
+            # A withdrawal transfers the funds from the user's MessageMe
+            # account back to the Ripple holding account.
+
+            transaction.debit_account  = account
+            transaction.credit_account = holding_account
 
             # Attempt to create a Ripple transaction transferring the funds
             # from the MessageMe Ripple Holding Account, back into the user's
