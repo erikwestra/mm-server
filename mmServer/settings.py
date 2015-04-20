@@ -24,24 +24,25 @@ import_setting = SettingsImporter(globals(),
                                   custom_settings="mmServer.custom_settings",
                                   env_prefix="MMS_")
 
-import_setting("DEBUG",                     True)
-import_setting("TIME_ZONE",                 "UTC")
-import_setting("SET_ALLOWED_HOSTS",         True)
-import_setting("SERVE_STATIC_MEDIA",        False)
+import_setting("DEBUG",                         True)
+import_setting("TIME_ZONE",                     "UTC")
+import_setting("SET_ALLOWED_HOSTS",             True)
+import_setting("SERVE_STATIC_MEDIA",            False)
 # NOTE: SERVE_STATIC_MEDIA only works if DEBUG is set to True.
-import_setting("DATABASE_URL",              None)
+import_setting("DATABASE_URL",                  None)
 # NOTE: DATABASE_URL uses the following general format:
 #           postgres://username:password@host:port/database_name
 #       or for a database on the local machine:
 #           postgres://username:password@localhost/database_name
-import_setting("LOG_DIR",                   os.path.join(ROOT_DIR, "logs"))
-import_setting("ENABLE_DEBUG_LOGGING",      False)
-import_setting("DEBUG_LOGGING_DESTINATION", "file")
+import_setting("LOG_DIR",                       os.path.join(ROOT_DIR, "logs"))
+import_setting("ENABLE_DEBUG_LOGGING",          False)
+import_setting("DEBUG_LOGGING_DESTINATION",     "file")
 # NOTE: KEEP_NONCE_VALUES_FOR is measured in days.  If this has the value
 # "none", the None values are kept forever.
-import_setting("KEEP_NONCE_VALUES_FOR",     None)
-import_setting("RIPPLED_SERVER_URLS",       [])
-import_setting("RIPPLE_HOLDING_ACCOUNT",    None)
+import_setting("KEEP_NONCE_VALUES_FOR",         None)
+import_setting("RIPPLED_SERVER_URLS",           [])
+import_setting("RIPPLE_HOLDING_ACCOUNT",        None)
+import_setting("RIPPLE_HOLDING_ACCOUNT_SECRET", None)
 
 #############################################################################
 

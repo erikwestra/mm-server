@@ -291,9 +291,11 @@ def transaction_POST(request):
             # Ask the Ripple network to sign our transaction, using the user's
             # account secret.
 
+            holding_account_secret = settings.RIPPLE_HOLDING_ACCOUNT_SECRET
+
             response = rippleInterface.request("sign",
                                                tx_json=ripple_transaction,
-                                               secret=profile.account_secret,
+                                               secret=holding_account_secret,
                                                fee_mult_max=1000000)
             if response == None:
                 error = "Ripple server failed to respond when signing " \
