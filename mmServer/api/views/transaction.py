@@ -207,8 +207,6 @@ def transaction_POST(request):
     transaction.status                  = Transaction.STATUS_PENDING #initially
     transaction.type                    = trans_type
     transaction.amount_in_drops         = amount_in_drops
-    transaction.debit_account           = None # initially
-    transaction.credit_account          = None # initially
     transaction.ripple_transaction_hash = None # initially
     transaction.message_hash            = None
     transaction.description             = description
