@@ -205,7 +205,7 @@ def transaction_POST(request):
     transaction.timestamp               = timezone.now()
     transaction.created_by              = account
     transaction.status                  = Transaction.STATUS_PENDING #initially
-    transaction.type                    = Transaction.TYPE_DEPOSIT
+    transaction.type                    = trans_type
     transaction.amount_in_drops         = amount_in_drops
     transaction.debit_account           = holding_account
     transaction.credit_account          = account
