@@ -194,7 +194,10 @@ def account_GET(request):
             elif transaction.type == Transaction.TYPE_RECIPIENT_CHARGE:
                 totals['recipient_charges'] += transaction.amount_in_drops
             elif transaction.type == Transaction.TYPE_ADJUSTMENT:
-                totals['adjustments'] += transaction.amount_in_drops
+                if transaction.debit_account == account:
+                    totals['adjustments'] -= transaction.amount_in_drops
+                elif transaction.credit_account == account:
+                    totals['adjustments'] -= transaction.amount_in_drops
 
         response['account']['totals'] = totals
 
