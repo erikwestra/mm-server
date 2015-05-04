@@ -99,8 +99,6 @@ def account_GET(request):
                                               "between these two users.")
 
         params['conversation'] = conversation
-    else:
-        params['conversation'] = None
 
     if "date" in request.GET:
         try:
@@ -146,6 +144,8 @@ def account_GET(request):
         account.global_id        = params['global_id']
         account.balance_in_drops = 0
         account.save()
+
+    print account.global_id, repr(params)
 
     # Calculate the information to return, based on the value of the "get"
     # parameter.
