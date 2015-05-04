@@ -208,7 +208,7 @@ def transaction_POST(request):
     transaction.type                    = trans_type
     transaction.amount_in_drops         = amount_in_drops
     transaction.ripple_transaction_hash = None # initially
-    transaction.message_hash            = None
+    transaction.message                 = None
     transaction.description             = description
     transaction.error                   = None # initially
 

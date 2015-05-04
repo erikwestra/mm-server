@@ -39,7 +39,8 @@ class AccountTestCase(django.test.TestCase):
         # details, using the HMAC authentication headers.
 
         response = self.client.get("/api/account" +
-                                   "?global_id=" + profile.global_id,
+                                   "?global_id=" + profile.global_id +
+                                   "&return=balance",
                                    **headers)
 
         self.assertEqual(response.status_code, 200)
@@ -50,10 +51,8 @@ class AccountTestCase(django.test.TestCase):
         # Check that the expected data was returned.
 
         self.assertIsInstance(data, dict)
-        self.assertItemsEqual(data.keys(), ["account"])
-        self.assertIsInstance(data['account'], dict)
-        self.assertItemsEqual(data['account'].keys(), ["balance"])
-        self.assertEqual(data['account']['balance'], 0)
+        self.assertItemsEqual(data.keys(), ["balance"])
+        self.assertEqual(data['balance'], 0)
 
     # -----------------------------------------------------------------------
 
@@ -117,7 +116,7 @@ class AccountTestCase(django.test.TestCase):
 
         response = self.client.get("/api/account" +
                                    "?global_id=" + profile.global_id +
-                                   "&transactions=all",
+                                   "&return=transactions",
                                    **headers)
 
         self.assertEqual(response.status_code, 200)
@@ -128,14 +127,11 @@ class AccountTestCase(django.test.TestCase):
         # Check that the expected data was returned.
 
         self.assertIsInstance(data, dict)
-        self.assertItemsEqual(data.keys(), ["account"])
-        self.assertIsInstance(data['account'], dict)
-        self.assertItemsEqual(data['account'].keys(),
-                              ["balance", "transactions"])
-        self.assertEqual(data['account']['balance'], 100)
-        self.assertEqual(len(data['account']['transactions']), 1)
-        self.assertEqual(data['account']['transactions'][0]['type'], "DEPOSIT")
-        self.assertEqual(data['account']['transactions'][0]['amount'], 100)
+        self.assertItemsEqual(data.keys(), ["transactions"])
+        self.assertIsInstance(data['transactions'], list)
+        self.assertEqual(len(data['transactions']), 1)
+        self.assertEqual(data['transactions'][0]['type'], "DEPOSIT")
+        self.assertEqual(data['transactions'][0]['amount'], 100)
 
     # -----------------------------------------------------------------------
 
@@ -234,7 +230,8 @@ class AccountTestCase(django.test.TestCase):
 
         response = self.client.get("/api/account" +
                                    "?global_id=" + profile.global_id +
-                                   "&totals=yes",
+                                   "&return=totals" +
+                                   "&group=type",
                                    **headers)
 
         self.assertEqual(response.status_code, 200)
@@ -245,18 +242,17 @@ class AccountTestCase(django.test.TestCase):
         # Check that the expected data was returned.
 
         self.assertIsInstance(data, dict)
-        self.assertItemsEqual(data.keys(), ["account"])
-        self.assertIsInstance(data['account'], dict)
-        self.assertItemsEqual(data['account'].keys(),
-                              ["balance", "totals"])
-        self.assertEqual(data['account']['balance'], 79)
-        self.assertIsInstance(data['account']['totals'], dict)
-        self.assertItemsEqual(data['account']['totals'].keys(),
-                              ["deposits", "withdrawals", "system_charges",
-                              "recipient_charges", "adjustments"])
-        self.assertEqual(data['account']['totals']['deposits'], 100)
-        self.assertEqual(data['account']['totals']['withdrawals'], 20)
-        self.assertEqual(data['account']['totals']['system_charges'], 1)
-        self.assertEqual(data['account']['totals']['recipient_charges'], 0)
-        self.assertEqual(data['account']['totals']['adjustments'], 0)
+        self.assertItemsEqual(data.keys(), ['types'])
+
+        totals = {} # Maps type to total.
+        for entry in data['types']:
+            self.assertIsInstance(entry, dict)
+            self.assertItemsEqual(entry.keys(), ['type', 'total'])
+            totals[entry['type']] = entry['total']
+
+        self.assertItemsEqual(totals.keys(),
+                              ['deposits', 'withdrawals', 'charges_paid'])
+        self.assertEqual(totals['deposits'], 100)
+        self.assertEqual(totals['withdrawals'], 20)
+        self.assertEqual(totals['charges_paid'], 1)
 

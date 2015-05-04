@@ -82,7 +82,7 @@ class MessageTestCase(django.test.TestCase):
         trans.debit_account           = holding_account
         trans.credit_account          = sender_account
         trans.ripple_transaction_hash = None
-        trans.message_hash            = None
+        trans.message                 = None
         trans.description             = None
         trans.error                   = None
         trans.save()

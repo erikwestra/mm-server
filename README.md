@@ -1103,33 +1103,78 @@ use HMAC authentication.  The following query-string parameters are supported:
 > 
 > > The current user's global ID.
 > 
-> `transactions` _(optional)_
+> `return` _(required)_
 > 
-> > A string indicating the types of transactions to return.  A value of "all"
-> > (in lowercase) will cause every type of transaction to be returned.
-> > Otherwise, each letter in the `transactions` parameter corresponds to a
-> > single transaction type:
+> > The type of information to return.  The following values are currently
+> > supported:
 > > 
-> > > `D` = `DEPOSIT`  
-> > > `W` = `WITHDRAWAL`  
-> > > `S` = `SYSTEM_CHARGE`  
-> > > `R` = `RECIPIENT_CHARGE`  
-> > > `A` = `ADJUSTMENT`
+> > > `balance`
+> > > 
+> > > > The user's current account balance.
+> > > 
+> > > `transactions`
+> > > 
+> > > > A list of individual transactions.
+> > > 
+> > > `totals`
+> > > 
+> > > > The transaction totals -- that is, the sum of all transactions grouped
+> > > > according to the value of the `group` parameter.
+> 
+> `group` _(optional)_
+> 
+> > If we are calculating the transaction totals, how to group the
+> > transactions before totalling them.  The following values are currently
+> > supported:
 > > 
-> > For example, a `transactions` value of "DWA" would return all `DEPOSIT`,
-> > `WITHDRAWAL` and `ADJUSTMENT` transactions.
+> > > `type`
+> > > 
+> > > > Calculate the totals by transaction type.
+> > >
+> > > `conversation`
+> > > 
+> > > > Calculate the totals by conversation.
+> > > 
+> > > `date`
+> > > 
+> > > > Calculate the totals by date.
 > > 
-> > If the `transactions` parameter is not supplied, then no transactions will
-> > be be returned.
+> > If no grouping value is supplied and we are calculating transaction totals,
+> > the transaction totals will be calculated by transaction type.
+> 
+> `type` _(optional)_
+> 
+> > Only include transactions of the given type in the results.  The following
+> > type values are currently supported:
+> > 
+> > > `charges_paid`  
+> > > `charges_received`  
+> > > `deposits`  
+> > > `withdrawals`  
+> > > `adjustments_paid`  
+> > > `adjustments_received`
+> 
+> `conversation` _(optional)_
+> 
+> > Only include transactions which involved the given conversation in the
+> > results.  If this parameter is supplied, it should be the global ID of the
+> > other person the conversation was with.
+> 
+> `date` _(optional)_
+> 
+> > Only include transactions on the given date.  If this parameter is
+> > supplied, it should be a string of the form `YYYY-MM-DD`.
 > 
 > `tpp` _(optional)_
 > 
-> > The maximum number of transactions to return per request.  If this is not
+> > If we are returning a list of individual transactions, this should be the
+> > maximum number of transactions to return per request.  If this is not
 > > specified, a maximum of 20 transactions will be returned in one go.
 > 
 > `page` _(optional)_
 > 
-> > The page number of the transactions to return.  Transactions are turned in
+> > If we are returning a list of individual transactions, this should be the
+> > page number of the transactions to return.  Transactions are turned in
 > > reverse date order (that is, the most recent transaction will be returned
 > > first), and the first page of transactions has a page number of zero.  To
 > > obtain more transactions, re-issue the API call with an increasing `page`
@@ -1138,138 +1183,232 @@ use HMAC authentication.  The following query-string parameters are supported:
 > > If the `page` parameter is not supplied, a default value of zero will be
 > > used.  This has the effect of returning the first page (ie, the most
 > > recent) transactions.
-> 
-> `totals`
-> 
-> > A string indicating the type of transaction totals to include in the
-> > results.  The following values are currently supported:
-> > 
-> > > `yes`
-> > > 
-> > > > Calculate and return the total for each type of transaction.
-> > > 
-> > > `charges_by_conversation`
-> > > 
-> > > > Calculate and return the total for each `SYSTEM_CHARGE` and
-> > > > `RECIPIENT_CHARGE` transaction, grouped by conversation.
-> > 
-> > If the `totals` parameter is not supplied then no totals will be returned.
 
-Upon completion, this API endpoint will return an HTTP response code of 200
+Upon completion, the API endpoint will return an HTTP response code of 200
 (OK) if the request was successful.  The body of the response will be a string
-containing the following JSON-formatted object:
+containing a JSON-formatted object; the contents of this object will vary
+depending on the value of the `return` parameter, as described below:
 
->     {account: {
->          balance: ...,
->          transactions: [...],
->          totals: {...}
->         }
->     }
-
-The `balance` field will hold the user's current account balance, in drops.
-The `transactions` array will only be returned if the `transactions` parameter
-was supplied, and the `totals` object will only be returned if the `totals`
-parameter was supplied.
-
-Each entry in the `transactions` array will be an object with the following
-fields:
-
-> `transaction_id`
+> **`return=balance`**
 > 
-> > A unique ID number associated with this transaction.
-> 
-> `timestamp`
-> 
-> > The date and time when this transaction was made, as a unix timestamp value
-> > in UTC.
-> 
-> `type`
-> 
-> > A string indicating the type of transaction.  The following type values are
-> > currently supported:
+> > In this case, the returned object will look like the following:
 > > 
-> > > `DEPOSIT`
-> > > 
-> > > > A deposit received from the user to "top up" their MessageMe account.
-> > > > This corresponds to funds being transferred from the user's Ripple
-> > > > account to the MessageMe Ripple Holding account.
-> > > 
-> > > `WITHDRAWAL`
-> > > 
-> > > > A withdrawal of funds from the user's account.  This corresponds to
-> > > > funds being transferred from the MessageMe Ripple Holding account to
-> > > > the user's Ripple account.
-> > > 
-> > > `SYSTEM_CHARGE`
-> > > 
-> > > > A system charge, debiting the user's account and crediting the
-> > > > MessageMe account.
-> > > 
-> > > `RECIPIENT_CHARGE`
-> > > 
-> > > > A recipient charge, debiting the user's account and crediting the
-> > > > MessageMe account of the recipient.
-> > > 
-> > > `ADJUSTMENT`
-> > > 
-> > > > A manual adjustment.  These are created by a system administrator to
-> > > > correct mistakes.
-> 
-> `amount`
-> 
-> > The amount of the transaction, in drops.
-> 
-> `other_account_type`
-> 
-> > The type of the other account involved in this transaction.  One of:
+> > >     {balance: 999}
 > > 
-> > > `USER`
-> > > 
-> > > > A user account.
-> > > 
-> > > `MESSAGEME`
-> > >
-> > > > The MessageMe account.
-> > > 
-> > > `RIPPLE_HOLDING`
-> > > 
-> > > > The Ripple holding account.
+> > where `balance` is the user's current account balance, in drops.
 > 
-> `other_account_global_id`
+> **`return=transactions`**
 > 
-> > For a user account, this will be the global ID of the owner of the other
-> > account involved in this transaction.  Note that this is only supplied
-> > where the `other_account_type` is `USER`.
+> > In this case, the returned object will look like the following:
+> > 
+> > >     {transactions: [...]}
+> > 
+> > Each entry in the `transactions` array will be an object with the following
+> > fields:
+> > 
+> > > `transaction_id`
+> > > 
+> > > > A unique ID number associated with this transaction.
+> > > 
+> > > `timestamp`
+> > > 
+> > > > The date and time when this transaction was made, as a unix timestamp
+> > > > value in UTC.
+> > > 
+> > > `type`
+> > > 
+> > > > A string indicating the type of transaction.  The following type values
+> > > > are currently supported:
+> > > > 
+> > > > > `DEPOSIT`
+> > > > > 
+> > > > > > A deposit received from the user to "top up" their MessageMe
+> > > > > > account.  This corresponds to funds being transferred from the
+> > > > > > user's Ripple account to the MessageMe Ripple Holding account.
+> > > > > 
+> > > > > `WITHDRAWAL`
+> > > > > 
+> > > > > > A withdrawal of funds from the user's account.  This corresponds to
+> > > > > > funds being transferred from the MessageMe Ripple Holding account
+> > > > > > to the user's Ripple account.
+> > > > > 
+> > > > > `SYSTEM_CHARGE_PAID`
+> > > > > 
+> > > > > > A system charge, debiting the user's account and crediting the
+> > > > > > MessageMe account.
+> > > > > 
+> > > > > `RECIPIENT_CHARGE_PAID`
+> > > > > 
+> > > > > > A recipient charge, debiting the user's account and crediting the
+> > > > > > MessageMe account of the recipient.
+> > > > > 
+> > > > > `RECIPIENT_CHARGE_RECEIVED`
+> > > > > 
+> > > > > > A recipient charge, debiting the other user's MessageMe account and
+> > > > > > crediting the current user's MessageMe account.
+> > > > > 
+> > > > > `ADJUSTMENT_PAID`
+> > > > > 
+> > > > > > A manual adjustment debited from the user's MessageMe account.
+> > > > > > These are created by a system administrator to correct mistakes.
+> > > > > 
+> > > > > `ADJUSTMENT_RECEIVED`
+> > > > > 
+> > > > > > A manual adjustment credited to the user's MessageMe account.
+> > > > > > These are created by a system administrator to correct mistakes.
+> > > 
+> > > `amount`
+> > > 
+> > > > The amount of the transaction, in drops.
+> > > 
+> > > `other_account_type`
+> > > 
+> > > > The type of the other account involved in this transaction.  One of:
+> > > > 
+> > > > > `USER`
+> > > > > 
+> > > > > > A user account.
+> > > > > 
+> > > > > `MESSAGEME`
+> > > > >
+> > > > > > The MessageMe account.
+> > > > > 
+> > > > > `RIPPLE_HOLDING`
+> > > > > 
+> > > > > > The Ripple holding account.
+> > > 
+> > > `other_account_global_id`
+> > > 
+> > > > For a user account, this will be the global ID of the owner of the other
+> > > > account involved in this transaction.  Note that this is only supplied
+> > > > where the `other_account_type` is `USER`.
+> > > 
+> > > `message_hash`
+> > > 
+> > > > If this transaction was associated with a message, this is the hash value
+> > > > uniquely identifying the message.  This field will not be present for
+> > > > transactions that are not associated with messages.
+> > 
+> > Note that only those transactions with a `status` value of "SUCCESS" will
+> > be included in this list. Pending and failed transactions will never be
+> > included.
 > 
-> `message_hash`
+> **`return=totals`**
 > 
-> > If this transaction was associated with a message, this is the hash value
-> > uniquely identifying the message.  This field will not be present for
-> > transactions that are not associated with messages.
+> > In this case, the returned object will hold the calculated transaction
+> > totals.  The exact set of fields in the returned object will vary depending
+> > on the value of the `group` parameter:
+> > 
+> > > **`group=type`**
+> > > 
+> > > > In this case, the returned object will look like the following:
+> > > > 
+> > > > >     {types: [...]}
+> > > > 
+> > > > Each entry in the `types` list will be an object with the following
+> > > > fields:
+> > > > 
+> > > > > `type`
+> > > > > 
+> > > > > > The type of transaction that this entry is for.  The following type
+> > > > > > values are currently supported:
+> > > > > > 
+> > > > > > > `charges_paid`  
+> > > > > > > `charges_received`  
+> > > > > > > `deposits`  
+> > > > > > > `withdrawals`  
+> > > > > > > `adjustments_paid`  
+> > > > > > > `adjustments_received`
+> > > > > 
+> > > > > `total`
+> > > > > 
+> > > > > > The total value of all the transactions of this type, in drops.
+> > > 
+> > > **`group=conversation`**
+> > > 
+> > > > In this case, the returned object will look like the following:
+> > > > 
+> > > > >     {conversations: [...]}
+> > > > 
+> > > > Each entry in the `conversations` list will be an object with the
+> > > > following fields:
+> > > > 
+> > > > > `global_id`
+> > > > > 
+> > > > > > The global ID of the person this conversation was with.
+> > > > > 
+> > > > > `name`
+> > > > > 
+> > > > > > The public name for this user, if available.
+> > > > > 
+> > > > > `total`
+> > > > > 
+> > > > > > The total value of the matching transactions for this conversation,
+> > > > > > in drops.
+> > > > 
+> > > >  The conversations will be sorted alphabetically by name.  If the
+> > > >  user's name is not available, the global ID will be used instead.
+> > > 
+> > > **`group=date`**
+> > > 
+> > > > In this case, the returned object will look like the following:
+> > > > 
+> > > > > {dates: [...]}
+> > > > 
+> > > >  Each entry in the 'dates' list will be an object with the following
+> > > >  fields:
+> > > > 
+> > > > > `date`
+> > > > > 
+> > > > > > The date, as a string in the form `YYYY-MM-DD`.
+> > > > > 
+> > > > > `total`
+> > > > > 
+> > > > > > The total value of the matching transactions for this date, in
+> > > > > > drops.
 
-Note that only those transactions with a `status` value of "SUCCESS" will be
-included in this list. Pending and failed transactions will never be included.
+If the HMAC authentication details are missing or invalid, the API endpoint
+will return an HTTP response code of 403 (Forbidden). If some required fields
+are missing, the API will return a response code of 400 (Bad Request).  If
+there is no user with the given global ID, the API will return a response code
+of 404 (Not Found).
 
-If the `totals` parameter had a value of `yes`, the returned `totals` object
-will have the following fields:
-
->     {deposits: 999,
->      withdrawals: 999,
->      system_charges: 999,
->      recipient_charges: 999,
->      adjustments: 999}
-
-The numbers will be the total value of all the transactions of that type,
-measured in drops.
-
-If the `totals` parameter had a value of `charges_by_conversation`, the
-returned `totals` object will contain one field for each of the user's
-conversations.  The field's name will be the global ID of the other user
-involved in the conversation, and the field's value will be the total charges
-assigned to that conversation, in drops.
-
-> _**Note**: the semantics of the `totals` parameter is likely to change._
-
+> <hr>
+> 
+> __LEGACY MODE__
+> 
+> To maintain backward-compatibility with the previous version of the MessageMe
+> app, this API endpoint also accepts the following parameter combination to
+> return a simple legacy version of the transaction totals:
+> 
+> > `global_id`
+> > 
+> > > The currently signed-in user's global ID.
+> > 
+> > `totals`
+> > 
+> > > The value `yes`.
+> 
+> With this combination of parameters, this API endpoint will operate in legacy
+> mode.  In this case, the returned JSON object will have the following fields:
+> 
+> >     {account: {
+> >         totals: {
+> >             deposits: 999,
+> >             withdrawals: 999,
+> >             system_charges: 999,
+> >             recipient_charges: 999,
+> >             adjustments: 999
+> >         }
+> >      }
+> >     }
+> 
+> The numbers will be the total value of all the transactions of that type,
+> measured in drops.  Note that the grouping is simply by transaction type,
+> rather than the more sophisticated breakdown supported by the new version of
+> this endpoint.
+> 
+> <hr>
 
 ### Endpoints for the Transaction Resource ###
 

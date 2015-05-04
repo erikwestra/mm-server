@@ -229,7 +229,7 @@ class Transaction(models.Model):
     credit_account          = models.ForeignKey(Account,
                                        related_name="credit_transactions")
     ripple_transaction_hash = models.TextField(null=True)
-    message_hash            = models.TextField(null=True)
+    message                 = models.ForeignKey(Message, null=True)
     description             = models.TextField(null=True)
     error                   = models.TextField(null=True)
 

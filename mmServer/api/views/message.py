@@ -143,12 +143,10 @@ def message_POST(request):
         conversation.num_unread_2   = 0
         conversation.save()
 
-    # Calculate the hash value to use for our message.
-
-    message_hash = uuid.uuid4().hex
-
     # Withdraw the transaction fees from the user's account.  If they don't
     # have enough funds to cover the fees, reject the message.
+
+    transactions = []
 
     with dbHelpers.exclusive_access(Account, Transaction):
 
@@ -197,10 +195,12 @@ def message_POST(request):
             t.debit_account           = sender_account
             t.credit_account          = recipient_account
             t.ripple_transaction_hash = None
-            t.message_hash            = message_hash
+            t.message                 = None
             t.description             = None
             t.error                   = None
             t.save()
+
+            transactions.append(t)
 
             # Update the recipient's account balance.
 
@@ -231,10 +231,12 @@ def message_POST(request):
             t.debit_account           = sender_account
             t.credit_account          = system_account
             t.ripple_transaction_hash = None
-            t.message_hash            = message_hash
+            t.message                 = None
             t.description             = None
             t.error                   = None
             t.save()
+
+            transactions.append(t)
 
             # Update the MessageMe system account balance.
 
@@ -250,7 +252,7 @@ def message_POST(request):
 
     message = Message()
     message.conversation         = conversation
-    message.hash                 = message_hash
+    message.hash                 = uuid.uuid4().hex
     message.timestamp            = timezone.now()
     message.sender_global_id     = sender_global_id
     message.recipient_global_id  = recipient_global_id
@@ -269,6 +271,13 @@ def message_POST(request):
     # Update the underlying conversation.
 
     messageHandler.update_conversation(conversation)
+
+    # Link the charge transactions back to the message, now that we've created
+    # it.
+
+    for transaction in transactions:
+        transaction.message = message
+        transaction.save()
 
     # Finally, tell the caller the good news.
 
