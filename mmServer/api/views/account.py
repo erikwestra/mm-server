@@ -303,7 +303,7 @@ def _get_transactions(account, params):
         query = query & _build_conversation_query(params['conversation'])
 
     if "date" in params:
-        query = query & _build_date_query(date)
+        query = query & _build_date_query(params['date'])
 
     results = Transaction.objects.filter(query).order_by("-timestamp")
 
@@ -392,7 +392,7 @@ def _get_totals_by_type(account, params):
         query = query & _build_conversation_query(params['conversation'])
 
     if "date" in params:
-        query = query & _build_date_query(date)
+        query = query & _build_date_query(params['date'])
 
     transactions = Transaction.objects.filter(query)
 
@@ -514,7 +514,7 @@ def _get_totals_by_conversation(account, params):
         query = query & _build_conversation_query(params['conversation'])
 
     if "date" in params:
-        query = query & _build_date_query(date)
+        query = query & _build_date_query(params['date'])
 
     transactions = Transaction.objects.filter(query)
 
@@ -619,7 +619,7 @@ def _get_totals_by_date(account, params):
         query = query & _build_conversation_query(params['conversation'])
 
     if "date" in params:
-        query = query & _build_date_query(date)
+        query = query & _build_date_query(params['date'])
 
     transactions = Transaction.objects.filter(query)
 
