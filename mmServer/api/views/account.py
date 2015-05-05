@@ -48,10 +48,29 @@ def account_GET(request):
         return HttpResponseForbidden()
 
     # See if the caller is using the legacy parameters.  If so, use the old
-    # logic for returning a summary of the transactions.
+    # logic for backwards compatibility.
 
     if "global_id" in request.GET and request.GET.get("totals") == "yes":
         return _legacy_account_GET(request)
+
+    if "global_id" in request.GET and len(request.GET) == 1:
+        # An API call with just a "global_id" parameter should return the
+        # account's current balance.
+
+        try:
+            account = Account.objects.get(type=Account.TYPE_USER,
+                                          global_id=request.GET['global_id'])
+        except Account.DoesNotExist:
+            account = Account()
+            account.type             = Account.TYPE_USER
+            account.global_id        = request.GET['global_id']
+            account.balance_in_drops = 0
+            account.save()
+
+        response = {'account' : {'balance' : account.balance_in_drops}}
+
+        return HttpResponse(json.dumps(response),
+                            mimetype="application/json")
 
     # Get the request parameters.
 
