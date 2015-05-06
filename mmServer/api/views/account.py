@@ -335,8 +335,24 @@ def _get_transactions(account, params):
         trans['transaction_id'] = transaction.id
         trans['timestamp']      = utils.datetime_to_unix_timestamp(
                                             transaction.timestamp)
-        trans['type']           = Transaction.TYPE_MAP[transaction.type]
         trans['amount']         = transaction.amount_in_drops
+
+        if transaction.type == Transaction.TYPE_DEPOSIT:
+            trans['type'] = "DEPOSIT"
+        elif transaction.type == Transaction.TYPE_WITHDRAWAL:
+            trans['type'] = "WITHDRAWAL"
+        elif transaction.type == Transaction.TYPE_SYSTEM_CHARGE:
+            trans['type'] = "SYSTEM_CHARGE_PAID"
+        elif transaction.type == Transaction.TYPE_RECIPIENT_CHARGE:
+            if account = transaction.debit_account:
+                trans['type'] = "RECIPIENT_CHARGE_PAID"
+            else:
+                trans['type'] = "RECIPIENT_CHARGE_RECEIVED"
+        elif transaction.type == Transaction.TYPE_ADJUSTMENT:
+            if account = transaction.debit_account:
+                trans['type'] = "ADJUSTMENT_PAID"
+            else:
+                trans['type'] = "ADJUSTMENT_RECEIVED"
 
         if transaction.debit_account == account:
             other_account = transaction.credit_account
