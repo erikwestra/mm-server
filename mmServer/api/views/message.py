@@ -105,7 +105,7 @@ def message_GET(request):
                'recipient_charge'     : msg.recipient_charge,
                'status'               : status}
 
-    if my_global_id == message.sender_global_id:
+    if my_global_id == msg.sender_global_id:
         message['text'] = msg.sender_text
     else:
         message['text'] = msg.recipient_text
