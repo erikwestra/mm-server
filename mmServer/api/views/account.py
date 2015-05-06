@@ -344,12 +344,12 @@ def _get_transactions(account, params):
         elif transaction.type == Transaction.TYPE_SYSTEM_CHARGE:
             trans['type'] = "SYSTEM_CHARGE_PAID"
         elif transaction.type == Transaction.TYPE_RECIPIENT_CHARGE:
-            if account = transaction.debit_account:
+            if account == transaction.debit_account:
                 trans['type'] = "RECIPIENT_CHARGE_PAID"
             else:
                 trans['type'] = "RECIPIENT_CHARGE_RECEIVED"
         elif transaction.type == Transaction.TYPE_ADJUSTMENT:
-            if account = transaction.debit_account:
+            if account == transaction.debit_account:
                 trans['type'] = "ADJUSTMENT_PAID"
             else:
                 trans['type'] = "ADJUSTMENT_RECEIVED"
