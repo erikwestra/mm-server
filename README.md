@@ -1007,6 +1007,48 @@ will return an HTTP response code of 403 (Forbidden).  If there is no user
 profile for either of the supplied global ID values, the API endpoint will
 return an HTTP response code of 404 (Not Found).
 
+**`GET api/message`**
+
+Retrieve a single message.  This API endpoint must use HMAC authentication.
+The following query-string parameters are required:
+
+> `my_global_id` _(required)_
+> 
+> > The current user's global ID.
+> 
+> `message_hash` _(required)_
+> 
+> > The hash uniquely identifying the desired message.
+> 
+> _**Note**: the current user must have an existing profile for this API
+> endpoint to work._
+
+Upon completion, this API endpoint will return an HTTP response code of 200
+(OK) if the request was successful.  The body of the response will be a string
+containing the following JSON-format data:
+
+>     {message: {
+>          hash: "...",
+>          timestamp: 1420173182,
+>          sender_global_id: "...",
+>          recipient_global_id: "...",
+>          sender_account_id: "...",
+>          recipient_account_id: "...",
+>          text: "...",
+>          action: "...",
+>          action_params: "...",
+>          system_charge: 5,
+>          recipient_charge: 0,
+>          status: "...",
+>          error: "..."}
+>     }
+
+If the HMAC authentication details are missing or invalid, the API endpoint
+will return an HTTP response code of 403 (Forbidden).  If there is no message
+with the given hash value, the API endpoint will return an HTTP response code
+of 404 (Not Found).  If the current user is not the sender or recipient of this
+message, the API endpoint will return an HTTP response code of 403 (Forbidden).
+
 **`POST api/message`**
 
 Attempt to send a message.  This API endpoint must use HMAC authentication.

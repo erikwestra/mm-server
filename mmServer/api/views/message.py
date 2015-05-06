@@ -32,14 +32,91 @@ def endpoint(request):
         HTTP method.
     """
     try:
-        if request.method == "POST":
+        if request.method == "GET":
+            return message_GET(request)
+        elif request.method == "POST":
             return message_POST(request)
         elif request.method == "PUT":
             return message_PUT(request)
         else:
-            return HttpResponseNotAllowed(["POST", 'PUT'])
+            return HttpResponseNotAllowed(["GET", "POST", 'PUT'])
     except:
         return utils.exception_response()
+
+#############################################################################
+
+def message_GET(request):
+    """ Respond to the "GET /api/message" API request.
+
+        This is used to retrieve a single message.
+    """
+    if not utils.has_hmac_headers(request):
+        return HttpResponseForbidden()
+
+    if "my_global_id" in request.GET:
+        my_global_id = request.GET['my_global_id']
+    else:
+        return HttpResponseBadRequest("Missing 'my_global_id' parameter.")
+
+    if "message_hash" in request.GET:
+        message_hash = request.GET['message_hash']
+    else:
+        return HttpResponseBadRequest("Missing 'message_hash' parameter.")
+
+    # Check the caller's authentication.
+
+    try:
+        my_profile = Profile.objects.get(global_id=my_global_id)
+    except Profile.DoesNotExist:
+        return HttpResponseBadRequest("User doesn't have a profile")
+
+    if not utils.check_hmac_authentication(request,
+                                           my_profile.account_secret):
+        return HttpResponseForbidden()
+
+    # Get the desired message.
+
+    try:
+        msg = Message.objects.get(hash=message_hash)
+    except Message.DoesNotExist:
+        return HttpResponseNotFound()
+
+    # Check that the user is the sender or recipient of the message.
+
+    if ((my_global_id != msg.sender_global_id) and
+        (my_global_id != msg.recipient_global_id)):
+        return HttpResponseForbidden()
+
+    # Prepare the message for returning to the caller.
+
+    timestamp = utils.datetime_to_unix_timestamp(msg.timestamp)
+    status    = Message.STATUS_MAP[msg.status]
+
+    message = {'hash'                 : msg.hash,
+               'timestamp'            : timestamp,
+               'sender_global_id'     : msg.sender_global_id,
+               'recipient_global_id'  : msg.recipient_global_id,
+               'sender_account_id'    : msg.sender_account_id,
+               'recipient_account_id' : msg.recipient_account_id,
+               'action'               : msg.action,
+               'action_params'        : msg.action_params,
+               'action_processed'     : msg.action_processed,
+               'system_charge'        : msg.system_charge,
+               'recipient_charge'     : msg.recipient_charge,
+               'status'               : status}
+
+    if my_global_id == message.sender_global_id:
+        message['text'] = msg.sender_text
+    else:
+        message['text'] = msg.recipient_text
+
+    if msg.error:
+        message['error'] = msg.error
+
+    # Finally, return the details of the message back to the caller.
+
+    return HttpResponse(json.dumps({'message' : message}),
+                        mimetype="application/json")
 
 #############################################################################
 
