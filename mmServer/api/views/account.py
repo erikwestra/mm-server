@@ -677,9 +677,13 @@ def _get_totals_by_date(account, params):
     while cur_date <= max_date:
         sDate = cur_date.strftime("%Y-%m-%d")
 
-        matches = transactions.filter(timestamp__year=cur_date.year,
-                                      timestamp__month=cur_date.month,
-                                      timestamp__day=cur_date.day)
+        start_of_day = datetime.datetime(cur_date.year,
+                                         cur_date.month,
+                                         cur_date.day)
+        start_of_next_day = start_of_day + datetime.timedelta(days=1)
+
+        matches = transactions.filter(timestamp__gte=start_of_day,
+                                      timestamp__lt=start_of_next_day)
         total = matches.aggregate(tot=Sum('amount_in_drops'))['tot']
 
         if total != None:
