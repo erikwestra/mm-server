@@ -751,7 +751,7 @@ def _get_totals_by_date(account, params):
     start_of_current_day_in_utc = start_of_first_day_in_utc
     while start_of_current_day_in_utc <= start_of_last_day_in_utc:
 
-        start_of_current_day_in_user_time = start_of_last_day_in_utc \
+        start_of_current_day_in_user_time = start_of_curent_day_in_utc \
                                           - timezone_offset
 
         sDate = start_of_current_day_in_user_time.strftime("%Y-%m-%d")
