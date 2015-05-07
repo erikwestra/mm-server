@@ -10,6 +10,7 @@ import operator
 from django.http                  import *
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models             import Q, Sum, Min, Max
+from django.utils                 import timezone
 
 import simplejson as json
 
@@ -679,7 +680,8 @@ def _get_totals_by_date(account, params):
 
         start_of_day = datetime.datetime(cur_date.year,
                                          cur_date.month,
-                                         cur_date.day)
+                                         cur_date.day,
+                                         tzinfo=timezone.utc)
         start_of_next_day = start_of_day + datetime.timedelta(days=1)
 
         matches = transactions.filter(timestamp__gte=start_of_day,
