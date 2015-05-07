@@ -127,6 +127,14 @@ def account_GET(request):
             return HttpResponseBadRequest("Invalid 'date' parameter value.")
         params['date'] = dt.date()
 
+    if "tz_offset" in request.GET:
+        try:
+            params['tz_offset'] = int(request.GET['tz_offset'])
+        except ValueError:
+            return HttpResponseBadRequest("Invalid 'tz_offset' parameter value.")
+    else:
+        params['tz_offset'] = None
+
     if "tpp" in request.GET:
         try:
             params['tpp'] = int(request.GET['tpp'])
@@ -323,7 +331,7 @@ def _get_transactions(account, params):
         query = query & _build_conversation_query(params['conversation'])
 
     if "date" in params:
-        query = query & _build_date_query(params['date'])
+        query = query & _build_date_query(params['date'], params['tz_offset'])
 
     results = Transaction.objects.filter(query).order_by("-timestamp")
 
@@ -428,7 +436,7 @@ def _get_totals_by_type(account, params):
         query = query & _build_conversation_query(params['conversation'])
 
     if "date" in params:
-        query = query & _build_date_query(params['date'])
+        query = query & _build_date_query(params['date'], params['tz_offset'])
 
     transactions = Transaction.objects.filter(query)
 
@@ -550,7 +558,7 @@ def _get_totals_by_conversation(account, params):
         query = query & _build_conversation_query(params['conversation'])
 
     if "date" in params:
-        query = query & _build_date_query(params['date'])
+        query = query & _build_date_query(params['date'], params['tz_offset'])
 
     transactions = Transaction.objects.filter(query)
 
@@ -655,7 +663,7 @@ def _get_totals_by_date(account, params):
         query = query & _build_conversation_query(params['conversation'])
 
     if "date" in params:
-        query = query & _build_date_query(params['date'])
+        query = query & _build_date_query(params['date'], params['tz_offset'])
 
     transactions = Transaction.objects.filter(query)
 
@@ -666,22 +674,67 @@ def _get_totals_by_date(account, params):
     if transactions.count() == 0:
         return {'dates' : []}
 
-    # Find the minimum and maximum dates for these transactions.
+    # Find the minimum and maximum timestamps for these transactions, in UTC.
 
-    min_date = transactions.aggregate(min=Min('timestamp'))['min'].date()
-    max_date = transactions.aggregate(max=Max('timestamp'))['max'].date()
+    min_timestamp_in_utc = transactions.aggregate(min=Min('timestamp'))['min']
+    max_timestamp_in_utc = transactions.aggregate(max=Max('timestamp'))['max']
 
-    # Calculate the total for each day in turn.
+    # Calculate the difference between UTC and the user's local time.  If the
+    # caller didn't specify a timezone offset, we set the difference to zero so
+    # that all our calculations are done in UTC.
+
+    if params['tz_offset'] != None:
+        timezone_offset = datetime.timedelta(minutes=params['tz_offset'])
+    else:
+        timezone_offset = datetime.timedelta(minutes=0)
+
+    # Convert the minimum and maximum timestamps into the user's local time
+    # zone.
+
+    min_timestamp_in_user_time = min_timestamp_in_utc + timezone_offset
+    max_timestamp_in_user_time = max_timestamp_in_utc + timezone_offset
+
+    # Calculate the start of the first day, in UTC.
+
+    start_of_first_day_in_user_time = \
+        datetime.datetime(min_timestamp_in_user_time.year,
+                          min_timestamp_in_user_time.month,
+                          min_timestamp_in_user_time.day,
+                          0, 0, 0)
+
+    start_of_first_day_in_utc = start_of_first_day_in_user_time \
+                              - timezone_offset
+
+    # Calculate the start of the last day, in UTC.
+
+    start_of_last_day_in_user_time = \
+        datetime.datetime(max_timestamp_in_user_time.year,
+                          max_timestamp_in_user_time.month,
+                          max_timestamp_in_user_time.day,
+                          0, 0, 0)
+
+    start_of_last_day_in_utc = start_of_last_day_in_user_time \
+                              - timezone_offset
+
+    # Now calculate the total for each day in turn.
 
     dates = []
-    cur_date = min_date
-    while cur_date <= max_date:
-        sDate = cur_date.strftime("%Y-%m-%d")
+    start_of_current_day_in_utc = start_of_first_day_in_utc
+    while start_of_current_day_in_utc <= start_of_last_day_in_utc:
 
-        start_of_day = datetime.datetime(cur_date.year,
-                                         cur_date.month,
-                                         cur_date.day,
-                                         tzinfo=timezone.utc)
+        start_of_current_day_in_user_time = start_of_last_day_in_utc \
+                                          + timezone_offset
+
+        sDate = start_of_current_day_in_user_time.strftime("%Y-%m-%d")
+
+        start_of_day = datetime.datetime(start_of_current_day_in_utc.year,
+                                         start_of_current_day_in_utc.month,
+                                         start_of_current_day_in_utc.day,
+                                         start_of_current_day_in_utc.hour,
+                                         start_of_current_day_in_utc.minute,
+                                         start_of_current_day_in_utc.second,
+                                         start_of_current_day_in_utc.microsecond,
+                                         timezone.utc)
         start_of_next_day = start_of_day + datetime.timedelta(days=1)
 
         matches = transactions.filter(timestamp__gte=start_of_day,
@@ -692,7 +745,8 @@ def _get_totals_by_date(account, params):
             dates.append({'date'  : sDate,
                           'total' : total})
 
-        cur_date = cur_date + datetime.timedelta(days=1)
+        start_of_current_day_in_utc = start_of_current_day_in_utc \
+                                    + datetime.timedelta(days=1)
 
     return {'dates' : dates}
 
@@ -751,13 +805,29 @@ def _build_conversation_query(conversation):
 
 #############################################################################
 
-def _build_date_query(date):
+def _build_date_query(date, tz_offset):
     """ Build a query to return transactions with a given date.
 
+        The parameters are as follows:
+
+            'date'
+            
+                A datetime.date object representing the desired date.
+                
+            'tz_offset'
+            
+                The difference between UTC and the user's local timezone, in
+                minutes.  If no timezone offset was specified, this will be set
+                to None.
+
         We return a Django "Q" object which only returns those transctions
-        generated on the given datetime.date value.
+        generated on the given day, allowing for the specified timezone offset
+        (if any).
     """
-    return Q(timestamp__year=date.year,
-             timestamp__month=date.month,
-             timestamp__day=date.day)
+    start_of_day = datetime.datetime(date.year, date.month, date.day, 0, 0, 0)
+    if tz_offset != None:
+        start_of_day = start_of_day + datetime.timedelta(minutes=tz_offset)
+    start_of_next_day = start_of_day + datetime.timedelta(days=1)
+
+    return Q(timestamp__gte=start_of_day, timestamp__lt=start_of_next_day)
 

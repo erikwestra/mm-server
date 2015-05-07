@@ -1205,8 +1205,17 @@ use HMAC authentication.  The following query-string parameters are supported:
 > `date` _(optional)_
 > 
 > > Only include transactions on the given date.  If this parameter is
-> > supplied, it should be a string of the form `YYYY-MM-DD`.
+> > supplied, it should be a string of the form `YYYY-MM-DD`.  The API endpoint
+> > will only include transactions in the results which were created between
+> > 12:00 AM and 11:59 PM on that date, using the specified `tz_offset` value
+> > to adjust for the end user's timezone.  If `tz_offset` is not supplied, the
+> > date will be considered to be in UTC.
 > 
+> `tz_offset` _(optional)_
+> 
+> > The difference between UTC and the the user's local time, in minutes.  If
+> > this parameter is not supplied, all dates will be considered to be in UTC.
+
 > `tpp` _(optional)_
 > 
 > > If we are returning a list of individual transactions, this should be the
@@ -1402,7 +1411,9 @@ depending on the value of the `return` parameter, as described below:
 > > > > 
 > > > > > `date`
 > > > > > 
-> > > > > > The date, as a string in the form `YYYY-MM-DD`.
+> > > > > > The date, as a string in the form `YYYY-MM-DD`.  If a `tz_offset`
+> > > > > > value was supplied, this date will be in the user's timezone;
+> > > > > > otherwise it will be in UTC.
 > > > > > 
 > > > > > `total`
 > > > > > 
