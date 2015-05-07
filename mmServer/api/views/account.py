@@ -306,8 +306,10 @@ def _get_transactions(account, params):
 
             'date'
 
-                If specified, this should be a datetime.date object.  Only
-                transactions made on that date will be included in the results.
+                If specified, this should be a datetime.date object
+                representing the desired date in the user's local timezone.
+                Only transactions made on that date will be included in the
+                results.
 
             'tz_offset'
 
@@ -418,8 +420,10 @@ def _get_totals_by_type(account, params):
 
             'date'
 
-                If specified, this should be a datetime.date object.  Only
-                transactions made on that date will be included in the results.
+                If specified, this should be a datetime.date object
+                representing the desired date in the user's local timezone.
+                Only transactions made on that date will be included in the
+                results.
 
             'tz_offset'
 
@@ -547,8 +551,10 @@ def _get_totals_by_conversation(account, params):
 
             'date'
 
-                If specified, this should be a datetime.date object.  Only
-                transactions made on that date will be included in the results.
+                If specified, this should be a datetime.date object
+                representing the desired date in the user's local timezone.
+                Only transactions made on that date will be included in the
+                results.
 
             'tz_offset'
 
@@ -656,8 +662,10 @@ def _get_totals_by_date(account, params):
 
             'date'
 
-                If specified, this should be a datetime.date object.  Only
-                transactions made on that date will be included in the results.
+                If specified, this should be a datetime.date object
+                representing the desired date in the user's local timezone.
+                Only transactions made on that date will be included in the
+                results.
 
             'tz_offset'
 
@@ -833,8 +841,9 @@ def _build_date_query(date, tz_offset):
 
             'date'
             
-                A datetime.date object representing the desired date.
-                
+                A datetime.date object representing the desired date in the
+                user's local timezone.
+
             'tz_offset'
             
                 The difference between UTC and the user's local timezone, in
@@ -845,9 +854,10 @@ def _build_date_query(date, tz_offset):
         generated on the given day, allowing for the specified timezone offset
         (if any).
     """
-    start_of_day = datetime.datetime(date.year, date.month, date.day, 0, 0, 0)
+    start_of_day = datetime.datetime(date.year, date.month, date.day, 0, 0, 0,
+                                     tzinfo=timezone.utc)
     if tz_offset != None:
-        start_of_day = start_of_day - datetime.timedelta(minutes=tz_offset)
+        start_of_day = start_of_day + datetime.timedelta(minutes=tz_offset)
     start_of_next_day = start_of_day + datetime.timedelta(days=1)
 
     return Q(timestamp__gte=start_of_day, timestamp__lt=start_of_next_day)
