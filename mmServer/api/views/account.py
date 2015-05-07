@@ -309,6 +309,11 @@ def _get_transactions(account, params):
                 If specified, this should be a datetime.date object.  Only
                 transactions made on that date will be included in the results.
 
+            'tz_offset'
+
+                If specified, this should be the user's timezone offset, in
+                minutes.
+
             'tpp'
 
                 The maximum number of transactions to return per request.
@@ -415,6 +420,11 @@ def _get_totals_by_type(account, params):
 
                 If specified, this should be a datetime.date object.  Only
                 transactions made on that date will be included in the results.
+
+            'tz_offset'
+
+                If specified, this should be the user's timezone offset, in
+                minutes.
 
         Upon completion, we return a dictionary that looks like the following:
 
@@ -540,6 +550,11 @@ def _get_totals_by_conversation(account, params):
                 If specified, this should be a datetime.date object.  Only
                 transactions made on that date will be included in the results.
 
+            'tz_offset'
+
+                If specified, this should be the user's timezone offset, in
+                minutes.
+
         Upon completion, we return a dictionary which looks like the following:
 
             {'john_smith'    : 999,
@@ -644,6 +659,11 @@ def _get_totals_by_date(account, params):
                 If specified, this should be a datetime.date object.  Only
                 transactions made on that date will be included in the results.
 
+            'tz_offset'
+
+                If specified, this should be the user's timezone offset, in
+                minutes.
+
         Upon completion, we return a dictionary which looks like the following:
 
             {'2015-01-06' : 999,
@@ -651,8 +671,9 @@ def _get_totals_by_date(account, params):
              ...
             }
 
-        Each dictionary entry maps a date (in "YYYY-MM-DD" format) to the total
-        value of the matching transactions for that day, in drops.
+        Each dictionary entry maps a date (in "YYYY-MM-DD" format, in the
+        user's local timezone) to the total value of the matching transactions
+        for that day, in drops.
     """
     # Build the queryset of matching transactions.
 
@@ -691,8 +712,8 @@ def _get_totals_by_date(account, params):
     # Convert the minimum and maximum timestamps into the user's local time
     # zone.
 
-    min_timestamp_in_user_time = min_timestamp_in_utc + timezone_offset
-    max_timestamp_in_user_time = max_timestamp_in_utc + timezone_offset
+    min_timestamp_in_user_time = min_timestamp_in_utc - timezone_offset
+    max_timestamp_in_user_time = max_timestamp_in_utc - timezone_offset
 
     # Calculate the start of the first day, in UTC.
 
@@ -703,7 +724,7 @@ def _get_totals_by_date(account, params):
                           0, 0, 0)
 
     start_of_first_day_in_utc = start_of_first_day_in_user_time \
-                              - timezone_offset
+                              + timezone_offset
 
     # Calculate the start of the last day, in UTC.
 
@@ -714,7 +735,7 @@ def _get_totals_by_date(account, params):
                           0, 0, 0)
 
     start_of_last_day_in_utc = start_of_last_day_in_user_time \
-                              - timezone_offset
+                              + timezone_offset
 
     # Now calculate the total for each day in turn.
 
@@ -723,7 +744,7 @@ def _get_totals_by_date(account, params):
     while start_of_current_day_in_utc <= start_of_last_day_in_utc:
 
         start_of_current_day_in_user_time = start_of_last_day_in_utc \
-                                          + timezone_offset
+                                          - timezone_offset
 
         sDate = start_of_current_day_in_user_time.strftime("%Y-%m-%d")
 
@@ -826,7 +847,7 @@ def _build_date_query(date, tz_offset):
     """
     start_of_day = datetime.datetime(date.year, date.month, date.day, 0, 0, 0)
     if tz_offset != None:
-        start_of_day = start_of_day + datetime.timedelta(minutes=tz_offset)
+        start_of_day = start_of_day - datetime.timedelta(minutes=tz_offset)
     start_of_next_day = start_of_day + datetime.timedelta(days=1)
 
     return Q(timestamp__gte=start_of_day, timestamp__lt=start_of_next_day)
