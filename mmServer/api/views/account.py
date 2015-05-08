@@ -329,7 +329,7 @@ def _get_transactions(account, params):
             {'transactions' : [...]}
 
         The 'transactions' entry will be a list of matching transactions as
-        requested by the caller.
+        requested by the caller, in descending order of timestamp.
     """
     query = _build_success_query()
     query = query & _build_type_query(account, params)
@@ -672,16 +672,14 @@ def _get_totals_by_date(account, params):
                 If specified, this should be the user's timezone offset, in
                 minutes.
 
-        Upon completion, we return a dictionary which looks like the following:
+        Upon completion, we return a list with one entry per day.  Each item in
+        the list will be a dictionary with 'date' and 'total' entries, where
+        'date' is a string of the form "YYYY-MM-DD" representing the date for
+        that day, in the user's local timezone, and 'total' is the total value
+        of the matching transactions for that day, in drops.
 
-            {'2015-01-06' : 999,
-             '2015-01-07' : 999,
-             ...
-            }
-
-        Each dictionary entry maps a date (in "YYYY-MM-DD" format, in the
-        user's local timezone) to the total value of the matching transactions
-        for that day, in drops.
+        The entries will be in reverse date order -- that is, the most recent
+        date will be first in the list.
     """
     # Build the queryset of matching transactions.
 
@@ -776,6 +774,8 @@ def _get_totals_by_date(account, params):
 
         start_of_current_day_in_utc = start_of_current_day_in_utc \
                                     + datetime.timedelta(days=1)
+
+    dates.reverse()
 
     return {'dates' : dates}
 

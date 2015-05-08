@@ -1340,6 +1340,9 @@ depending on the value of the `return` parameter, as described below:
 > > > > uniquely identifying the message.  This field will not be present for
 > > > > transactions that are not associated with messages.
 > > 
+> > The transactions will be returned in descending timestamp order -- that is,
+> > the most recent transaction will be returned first.
+> > 
 > > Note that only those transactions with a `status` value of "SUCCESS" will
 > > be included in this list. Pending and failed transactions will never be
 > > included.
@@ -1406,8 +1409,8 @@ depending on the value of the `return` parameter, as described below:
 > > > > 
 > > > > > {dates: [...]}
 > > > > 
-> > > >  Each entry in the 'dates' list will be an object with the following
-> > > >  fields:
+> > > > Each entry in the 'dates' list will be an object with the following
+> > > > fields:
 > > > > 
 > > > > > `date`
 > > > > > 
@@ -1419,6 +1422,9 @@ depending on the value of the `return` parameter, as described below:
 > > > > > 
 > > > > > > The total value of the matching transactions for this date, in
 > > > > > > drops.
+> > > > 
+> > > > The dates are in inverse order -- that is, the most recent date will be
+> > > > first in the list.
 
 If the HMAC authentication details are missing or invalid, the API endpoint
 will return an HTTP response code of 403 (Forbidden). If some required fields
