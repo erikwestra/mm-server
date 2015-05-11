@@ -174,7 +174,7 @@ def message_POST(request):
         action = None
 
     if "action_params" in data:
-        action_params = data['action_params']
+        action_params = json.loads(data['action_params'])
         if action in ["SEND_XRP", "REQUEST_XRP", "DECLINE_REQUEST_XRP"]:
             if "amount" not in action_params:
                 return HttpResponseBadRequest("Missing 'amount' entry in " +
