@@ -74,7 +74,12 @@ def message_GET(request):
                                            my_profile.account_secret):
         return HttpResponseForbidden()
 
-    # Get the desired message.
+    # If we have any pending messages, check them now.  This will have the
+    # effect of updating the desired message if it was pending.
+
+    messageHandler.check_pending_messages()
+
+    # Now get the desired message.
 
     try:
         msg = Message.objects.get(hash=message_hash)
@@ -170,8 +175,20 @@ def message_POST(request):
 
     if "action_params" in data:
         action_params = data['action_params']
+        if action in ["SEND_XRP", "REQUEST_XRP", "DECLINE_REQUEST_XRP"]:
+            if "amount" not in action_params:
+                return HttpResponseBadRequest("Missing 'amount' entry in " +
+                                              "action_params' object.")
+            try:
+                action_amount = int(action_params['amount'])
+            except ValueError:
+                return HttpResponseBadRequest("The 'amount' parameter must " +
+                                              "be an integer.")
     else:
-        action_params = None
+        if action in ["SEND_XRP", "REQUEST_XRP", "DECLINE_REQUEST_XRP"]:
+            return HttpResponseBadRequest("This action requires parameters.")
+        else:
+            action_params = None
 
     if "system_charge" not in data:
         return HttpResponseBadRequest("Missing 'system_charge' field.")
@@ -324,12 +341,73 @@ def message_POST(request):
         if recipient_charge > 0 or system_charge > 0:
             transactionHandler.update_account_balance(sender_account)
 
+    # If the message has a "SEND_XRP" action associated with it, attempt to
+    # transfer the funds to the recipient.  In this case, the message becomes
+    # pending rather than being sent right away, and the message hash is set to
+    # the hash of the transaction created within the Ripple network.
+
+    if action == "SEND_XRP":
+        # Create the Ripple transaction to transfer the funds.
+
+        transaction = {'TransactionType' : "Payment",
+                       'Account'         : sender_account_id,
+                       'Destination'     : recipient_account_id,
+                       'Amount'          : str(action_amount),
+                      }
+
+        # Ask the Ripple network to sign our message, using the sending user's
+        # account secret.
+
+        error = None # initially.
+
+        response = rippleInterface.request("sign",
+                                           tx_json=transaction,
+                                           secret=senders_profile.account_secret,
+                                           fee_mult_max=1000000)
+        if response == None:
+            error = "Ripple server failed to respond when signing " \
+                  + "the transaction"
+        elif response['status'] != "success":
+            error = "Ripple server error signing transaction: %s" \
+                  % response['error']
+
+        # Now attempt to submit the transaction to the Ripple ledger.
+
+        if error == None:
+            tx_blob = response['result']['tx_blob']
+
+            response = rippleInterface.request("submit",
+                                               tx_blob=tx_blob,
+                                               fail_hard=True)
+
+            if response == None:
+                error = "Ripple server failed to respond when submitting " \
+                      + "transaction"
+            elif response['status'] != "success":
+                error = "Ripple server error submittting transaction: " \
+                      + response['error']
+
+        if error == None:
+            message_hash   = response['result']['tx_json']['hash']
+            message_status = Message.STATUS_PENDING
+            message_error  = None
+        else:
+            message_hash   = uuid.uuid4().hex
+            message_status = Message.STATUS_FAILED
+            message_error  = error
+    else:
+        # Any other message is sent immediately, and has an
+        # internally-generated message hash.
+        message_hash   = uuid.uuid4().hex
+        message_status = Message.STATUS_SENT
+        message_error  = None
+
     # Create the new Message object.  Note that the message is marked as "SENT"
     # right away.
 
     message = Message()
     message.conversation         = conversation
-    message.hash                 = uuid.uuid4().hex
+    message.hash                 = message_hash
     message.timestamp            = timezone.now()
     message.sender_global_id     = sender_global_id
     message.recipient_global_id  = recipient_global_id
@@ -341,8 +419,8 @@ def message_POST(request):
     message.action_params        = action_params
     message.system_charge        = system_charge
     message.recipient_charge     = recipient_charge
-    message.status               = Message.STATUS_SENT
-    message.error                = None
+    message.status               = message_status
+    message.error                = message_error
     message.save()
 
     # Update the underlying conversation.

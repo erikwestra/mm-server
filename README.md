@@ -23,6 +23,8 @@ the following server-side functionality:
  * Making deposits and withdrawals against the user's MessageMe account.
 <br/><br/>
  * Charging users for the messages they send.
+<br/><br/>
+ * Sending and receiving funds via the Ripple network.
 
 In addition to the API, the `mmServer` system provides an **Admin Interface**
 which lets suitably authorised people view data and enter manual adjustments
