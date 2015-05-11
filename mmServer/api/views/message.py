@@ -402,6 +402,12 @@ def message_POST(request):
         message_status = Message.STATUS_SENT
         message_error  = None
 
+    # Convert the action parameters (if any) back into JSON format so we can
+    # safely store it.
+
+    if action_params != None:
+        action_params = json.dumps(action_params)
+
     # Create the new Message object.  Note that the message is marked as "SENT"
     # right away.
 
@@ -416,7 +422,6 @@ def message_POST(request):
     message.sender_text          = sender_text
     message.recipient_text       = recipient_text
     message.action               = action
-    message.action_params        = action_params
     message.system_charge        = system_charge
     message.recipient_charge     = recipient_charge
     message.status               = message_status
