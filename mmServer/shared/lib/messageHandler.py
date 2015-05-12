@@ -45,8 +45,11 @@ def check_pending_messages():
                 msg.error  = response['error']
                 msg.save()
                 continue
+            else:
+                # Any other error -> try again later.
+                continue
 
-        if response['result'].get("validated", False):
+        if response.get("result", {}).get("validated", False):
             # This message has been validated -> update the status.
 
             trans_result = response['result']['meta']['TransactionResult']
