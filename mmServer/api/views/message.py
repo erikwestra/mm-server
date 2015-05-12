@@ -422,6 +422,7 @@ def message_POST(request):
     message.sender_text          = sender_text
     message.recipient_text       = recipient_text
     message.action               = action
+    message.action_params        = action_params
     message.system_charge        = system_charge
     message.recipient_charge     = recipient_charge
     message.status               = message_status
