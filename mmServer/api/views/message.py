@@ -97,18 +97,19 @@ def message_GET(request):
     timestamp = utils.datetime_to_unix_timestamp(msg.timestamp)
     status    = Message.STATUS_MAP[msg.status]
 
-    message = {'hash'                 : msg.hash,
-               'timestamp'            : timestamp,
-               'sender_global_id'     : msg.sender_global_id,
-               'recipient_global_id'  : msg.recipient_global_id,
-               'sender_account_id'    : msg.sender_account_id,
-               'recipient_account_id' : msg.recipient_account_id,
-               'action'               : msg.action,
-               'action_params'        : msg.action_params,
-               'action_processed'     : msg.action_processed,
-               'system_charge'        : msg.system_charge,
-               'recipient_charge'     : msg.recipient_charge,
-               'status'               : status}
+    message = {'hash'                  : msg.hash,
+               'timestamp'             : timestamp,
+               'sender_global_id'      : msg.sender_global_id,
+               'recipient_global_id'   : msg.recipient_global_id,
+               'sender_account_id'     : msg.sender_account_id,
+               'recipient_account_id'  : msg.recipient_account_id,
+               'action'                : msg.action,
+               'action_params'         : msg.action_params,
+               'action_processed'      : msg.action_processed,
+               'message_charge'        : msg.message_charge,
+               'system_charge'         : msg.system_charge,
+               'system_charge_paid_by' : msg.system_charge_paid_by,
+               'status'                : status}
 
     if my_global_id == msg.sender_global_id:
         message['text'] = msg.sender_text
@@ -190,15 +191,35 @@ def message_POST(request):
         else:
             action_params = None
 
+    # Temporary code:
+
+    if ("system_charge" in data and
+        "recipient_charge" in data and
+        "system_charge_paid_by" not in data):
+        # We have the old charge params -> adjust them to match the new ones.
+        data['system_charge_paid_by'] = Message.SYSTEM_CHARGE_PAID_BY_RECIPIENT
+        data['message_charge']        = data['recipient_charge'] \
+                                      + data['system_charge']
+        del data['recipient_charge']
+
+    # End of temporary code.
+
+    if "message_charge" not in data:
+        return HttpResponseBadRequest("Missing 'message_charge' field.")
+    else:
+        message_charge = data['message_charge']
+
     if "system_charge" not in data:
         return HttpResponseBadRequest("Missing 'system_charge' field.")
     else:
         system_charge = data['system_charge']
 
-    if "recipient_charge" not in data:
-        return HttpResponseBadRequest("Missing 'recipient_charge' field.")
+    if "system_charge_paid_by" not in data:
+        return HttpResponseBadRequest("Missing 'system_charge_paid_by' field.")
+    elif data['system_charge_paid_by'] not in ["SENDER", "RECIPIENT"]:
+        return HttpResponseBadRequest("Invalid 'system_charge_paid_by' value.")
     else:
-        recipient_charge = data['recipient_charge']
+        system_charge_paid_by = data['system_charge_paid_by']
 
     try:
         senders_profile = Profile.objects.get(global_id=sender_global_id)
@@ -237,8 +258,9 @@ def message_POST(request):
         conversation.num_unread_2   = 0
         conversation.save()
 
-    # Withdraw the transaction fees from the user's account.  If they don't
-    # have enough funds to cover the fees, reject the message.
+    # Create the various transactions needed to pay the charges for this
+    # message.  If one of the accounts doesn't have enough funds to pay the
+    # charge, then we reject the message.
 
     transactions = []
 
@@ -256,90 +278,153 @@ def message_POST(request):
             sender_account.balance_in_drops = 0
             sender_account.save()
 
-        # If the sender doesn't have enough money in their account, reject the
-        # message.
+        # Get the recipient's account, creating it if necessary.
 
-        if sender_account.balance_in_drops < system_charge + recipient_charge:
-            return HttpResponse(status=402) # 402 = Payment required.
+        try:
+            recipient_account = Account.objects.get(type=Account.TYPE_USER,
+                                                 global_id=recipient_global_id)
+        except Account.DoesNotExist:
+            recipient_account = Account()
+            recipient_account.type             = Account.TYPE_USER
+            recipient_account.global_id        = recipient_global_id
+            recipient_account.balance_in_drops = 0
+            recipient_account.save()
 
-        if recipient_charge > 0:
+        # Get the MessageMe system account, creating it if necessary.
 
-            # Get the recipient's account, creating it if necessary.
+        try:
+            system_account = Account.objects.get(type=Account.TYPE_MESSAGEME)
+        except Account.DoesNotExist:
+            system_account = Account()
+            system_account.type             = Account.TYPE_MESSAGEME
+            system_account.global_id        = None
+            system_account.balance_in_drops = 0
+            system_account.save()
 
-            try:
-                recipient_account = Account.objects.get(
-                                                type=Account.TYPE_USER,
-                                                global_id=recipient_global_id)
-            except Account.DoesNotExist:
-                recipient_account = Account()
-                recipient_account.type             = Account.TYPE_USER
-                recipient_account.global_id        = recipient_global_id
-                recipient_account.balance_in_drops = 0
-                recipient_account.save()
+        # Create the appropriate transactions, making sure the sender and/or
+        # the recipient can afford to pay for the message.  How we do this
+        # depends on whether the sender or the recipient is paying the system
+        # charge.
 
-            # Create a transaction deducting the recipient charge from the
-            # sender's account.
+        if system_charge_paid_by == "SENDER":
 
-            t = Transaction()
-            t.timestamp               = timezone.now()
-            t.created_by              = sender_account
-            t.status                  = Transaction.STATUS_SUCCESS
-            t.type                    = Transaction.TYPE_RECIPIENT_CHARGE
-            t.amount_in_drops         = recipient_charge
-            t.debit_account           = sender_account
-            t.credit_account          = recipient_account
-            t.ripple_transaction_hash = None
-            t.message                 = None
-            t.description             = None
-            t.error                   = None
-            t.save()
+            # Make sure the sender can afford to pay both the system charge and
+            # the message charge.
 
-            transactions.append(t)
+            if sender_account.balance_in_drops < system_charge + message_charge:
+                return HttpResponse(status=402) # 402 = Payment required.
 
-            # Update the recipient's account balance.
+            # Create a transaction to pay the system charge, if there is one.
 
-            transactionHandler.update_account_balance(recipient_account)
+            if system_charge > 0:
+                t = Transaction()
+                t.timestamp               = timezone.now()
+                t.created_by              = sender_account
+                t.status                  = Transaction.STATUS_SUCCESS
+                t.type                    = Transaction.TYPE_CHARGE
+                t.amount_in_drops         = system_charge
+                t.debit_account           = sender_account
+                t.credit_account          = system_account
+                t.ripple_transaction_hash = None
+                t.message                 = None # Initially.
+                t.description             = None
+                t.error                   = None
+                t.save()
 
-        if system_charge > 0:
+                transactions.append(t)
 
-            # Get the MessageMe system account, creating it if necessary.
+            # Create a second transaction to pay the message charge, if there
+            # is one.
 
-            try:
-                system_account = Account.objects.get(type=Account.TYPE_MESSAGEME)
-            except Account.DoesNotExist:
-                system_account = Account()
-                system_account.type             = Account.TYPE_MESSAGEME
-                system_account.global_id        = None
-                system_account.balance_in_drops = 0
-                system_account.save()
+            if message_charge > 0:
+                t = Transaction()
+                t.timestamp               = timezone.now()
+                t.created_by              = sender_account
+                t.status                  = Transaction.STATUS_SUCCESS
+                t.type                    = Transaction.TYPE_CHARGE
+                t.amount_in_drops         = message_charge
+                t.debit_account           = sender_account
+                t.credit_account          = recipient_account
+                t.ripple_transaction_hash = None
+                t.message                 = None # Initially.
+                t.description             = None
+                t.error                   = None
+                t.save()
 
-            # Create a transaction deducting the system charge from the
-            # sender's account.
+                transactions.append(t)
 
-            t = Transaction()
-            t.timestamp               = timezone.now()
-            t.created_by              = sender_account
-            t.status                  = Transaction.STATUS_SUCCESS
-            t.type                    = Transaction.TYPE_SYSTEM_CHARGE
-            t.amount_in_drops         = system_charge
-            t.debit_account           = sender_account
-            t.credit_account          = system_account
-            t.ripple_transaction_hash = None
-            t.message                 = None
-            t.description             = None
-            t.error                   = None
-            t.save()
+            # Update the various account balances.
 
-            transactions.append(t)
+            if system_charge > 0 or message_charge > 0:
+                transactionHandler.update_account_balance(sender_account)
 
-            # Update the MessageMe system account balance.
+            if system_charge > 0:
+                transactionHandler.update_account_balance(system_account)
 
-            transactionHandler.update_account_balance(system_account)
+            if message_charge > 0:
+                transactionHandler.update_account_balance(recipient_account)
 
-        # Update the sender's account balance.
+        elif system_charge_paid_by == "RECIPIENT":
 
-        if recipient_charge > 0 or system_charge > 0:
-            transactionHandler.update_account_balance(sender_account)
+            # Make sure the sender can afford to pay the message charge.
+
+            if sender_account.balance_in_drops < message_charge:
+                return HttpResponse(status=402) # 402 = Payment required.
+
+            # Make sure the recipient (once they've been paid the message
+            # charge) can afford to pay the system charge.
+
+            if recipient_account.balance_in_drops+message_charge < system_charge:
+                return HttpResponse(status=402) # 402 = Payment required.
+
+            # Create a transaction to pay the message charge, if there is one.
+
+            if message_charge > 0:
+                t = Transaction()
+                t.timestamp               = timezone.now()
+                t.created_by              = sender_account
+                t.status                  = Transaction.STATUS_SUCCESS
+                t.type                    = Transaction.TYPE_CHARGE
+                t.amount_in_drops         = message_charge
+                t.debit_account           = sender_account
+                t.credit_account          = recipient_account
+                t.ripple_transaction_hash = None
+                t.message                 = None # Initially.
+                t.description             = None
+                t.error                   = None
+                t.save()
+
+                transactions.append(t)
+
+            # Create a transaction to pay the system charge, if there is one.
+
+            if system_charge > 0:
+                t = Transaction()
+                t.timestamp               = timezone.now()
+                t.created_by              = recipient_account
+                t.status                  = Transaction.STATUS_SUCCESS
+                t.type                    = Transaction.TYPE_CHARGE
+                t.amount_in_drops         = system_charge
+                t.debit_account           = recipient_account
+                t.credit_account          = system_account
+                t.ripple_transaction_hash = None
+                t.message                 = None # Initially.
+                t.description             = None
+                t.error                   = None
+                t.save()
+
+                transactions.append(t)
+
+            # Update the various account balances.
+
+            if message_charge > 0:
+                transactionHandler.update_account_balance(sender_account)
+
+            if message_charge > 0 or system_charge > 0:
+                transactionHandler.update_account_balance(recipient_account)
+
+            if system_charge > 0:
+                transactionHandler.update_account_balance(system_account)
 
     # If the message has a "SEND_XRP" action associated with it, attempt to
     # transfer the funds to the recipient.  In this case, the message becomes
@@ -408,25 +493,25 @@ def message_POST(request):
     if action_params != None:
         action_params = json.dumps(action_params)
 
-    # Create the new Message object.  Note that the message is marked as "SENT"
-    # right away.
+    # Create the new Message object for this message.
 
     message = Message()
-    message.conversation         = conversation
-    message.hash                 = message_hash
-    message.timestamp            = timezone.now()
-    message.sender_global_id     = sender_global_id
-    message.recipient_global_id  = recipient_global_id
-    message.sender_account_id    = sender_account_id
-    message.recipient_account_id = recipient_account_id
-    message.sender_text          = sender_text
-    message.recipient_text       = recipient_text
-    message.action               = action
-    message.action_params        = action_params
-    message.system_charge        = system_charge
-    message.recipient_charge     = recipient_charge
-    message.status               = message_status
-    message.error                = message_error
+    message.conversation          = conversation
+    message.hash                  = message_hash
+    message.timestamp             = timezone.now()
+    message.sender_global_id      = sender_global_id
+    message.recipient_global_id   = recipient_global_id
+    message.sender_account_id     = sender_account_id
+    message.recipient_account_id  = recipient_account_id
+    message.sender_text           = sender_text
+    message.recipient_text        = recipient_text
+    message.action                = action
+    message.action_params         = action_params
+    message.message_charge        = message_charge
+    message.system_charge         = system_charge
+    message.system_charge_paid_by = system_charge_paid_by
+    message.status                = message_status
+    message.error                 = message_error
     message.save()
 
     # Update the underlying conversation.
@@ -434,7 +519,7 @@ def message_POST(request):
     messageHandler.update_conversation(conversation)
 
     # Link the charge transactions back to the message, now that we've created
-    # it.
+    # the Message record.
 
     for transaction in transactions:
         transaction.message = message

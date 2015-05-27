@@ -137,24 +137,33 @@ class Message(ModelWithUpdateID):
                   STATUS_READ    : "READ",
                   STATUS_FAILED  : "FAILED"}
 
-    id                   = models.AutoField(primary_key=True)
-    conversation         = models.ForeignKey(Conversation)
-    hash                 = models.TextField(null=True, db_index=True)
-    timestamp            = models.DateTimeField()
-    sender_global_id     = models.TextField(db_index=True)
-    recipient_global_id  = models.TextField(db_index=True)
-    sender_account_id    = models.TextField()
-    recipient_account_id = models.TextField()
-    sender_text          = models.TextField()
-    recipient_text       = models.TextField()
-    action               = models.TextField(null=True)
-    action_params        = models.TextField(null=True)
-    action_processed     = models.BooleanField(default=False)
-    system_charge        = models.IntegerField(default=0)
-    recipient_charge     = models.IntegerField(default=0)
-    status               = models.IntegerField(choices=STATUS_CHOICES,
-                                               db_index=True)
-    error                = models.TextField(null=True)
+    SYSTEM_CHARGE_PAID_BY_SENDER    = "SENDER"
+    SYSTEM_CHARGE_PAID_BY_RECIPIENT = "RECIPIENT"
+
+    SYSTEM_CHARGE_PAID_BY_CHOICES = (
+        (SYSTEM_CHARGE_PAID_BY_SENDER,    "SENDER"),
+        (SYSTEM_CHARGE_PAID_BY_RECIPIENT, "RECIPIENT"))
+
+    id                    = models.AutoField(primary_key=True)
+    conversation          = models.ForeignKey(Conversation)
+    hash                  = models.TextField(null=True, db_index=True)
+    timestamp             = models.DateTimeField()
+    sender_global_id      = models.TextField(db_index=True)
+    recipient_global_id   = models.TextField(db_index=True)
+    sender_account_id     = models.TextField()
+    recipient_account_id  = models.TextField()
+    sender_text           = models.TextField()
+    recipient_text        = models.TextField()
+    action                = models.TextField(null=True)
+    action_params         = models.TextField(null=True)
+    action_processed      = models.BooleanField(default=False)
+    message_charge        = models.IntegerField(default=0)
+    system_charge         = models.IntegerField(default=0)
+    system_charge_paid_by = models.TextField(
+                                        choices=SYSTEM_CHARGE_PAID_BY_CHOICES)
+    status                = models.IntegerField(choices=STATUS_CHOICES,
+                                                db_index=True)
+    error                 = models.TextField(null=True)
 
 #############################################################################
 
@@ -196,23 +205,20 @@ class Transaction(models.Model):
                   STATUS_SUCCESS : "SUCCESS",
                   STATUS_FAILED  : "FAILED"}
 
-    TYPE_DEPOSIT          = "D"
-    TYPE_WITHDRAWAL       = "W"
-    TYPE_SYSTEM_CHARGE    = "S"
-    TYPE_RECIPIENT_CHARGE = "R"
-    TYPE_ADJUSTMENT       = "A"
+    TYPE_DEPOSIT    = "D"
+    TYPE_WITHDRAWAL = "W"
+    TYPE_CHARGE     = "C"
+    TYPE_ADJUSTMENT = "A"
 
-    TYPE_CHOICES = ((TYPE_DEPOSIT,          "DEPOSIT"),
-                    (TYPE_WITHDRAWAL,       "WITHDRAWAL"),
-                    (TYPE_SYSTEM_CHARGE,    "SYSTEM_CHARGE"),
-                    (TYPE_RECIPIENT_CHARGE, "RECIPIENT_CHARGE"),
-                    (TYPE_ADJUSTMENT,       "ADJUSTMENT"))
+    TYPE_CHOICES = ((TYPE_DEPOSIT,    "DEPOSIT"),
+                    (TYPE_WITHDRAWAL, "WITHDRAWAL"),
+                    (TYPE_CHARGE,     "CHARGE"),
+                    (TYPE_ADJUSTMENT, "ADJUSTMENT"))
 
-    TYPE_MAP = {TYPE_DEPOSIT          : "DEPOSIT",
-                TYPE_WITHDRAWAL       : "WITHDRAWAL",
-                TYPE_SYSTEM_CHARGE    : "SYSTEM_CHARGE",
-                TYPE_RECIPIENT_CHARGE : "RECIPIENT_CHARGE",
-                TYPE_ADJUSTMENT       : "ADJUSTMENT"}
+    TYPE_MAP = {TYPE_DEPOSIT    : "DEPOSIT",
+                TYPE_WITHDRAWAL : "WITHDRAWAL",
+                TYPE_CHARGE     : "SYSTEM_CHARGE",
+                TYPE_ADJUSTMENT : "ADJUSTMENT"}
 
     id                      = models.AutoField(primary_key=True)
     timestamp               = models.DateTimeField(db_index=True)

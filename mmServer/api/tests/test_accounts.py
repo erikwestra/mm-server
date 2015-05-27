@@ -188,7 +188,7 @@ class AccountTestCase(django.test.TestCase):
         transaction.timestamp       = timezone.now()
         transaction.created_by      = user_account
         transaction.status          = Transaction.STATUS_SUCCESS
-        transaction.type            = Transaction.TYPE_SYSTEM_CHARGE
+        transaction.type            = Transaction.TYPE_CHARGE
         transaction.amount_in_drops = 1
         transaction.debit_account   = user_account
         transaction.credit_account  = messageme_account

@@ -140,42 +140,129 @@ another user's profile.
 
 ## User Accounts ##
 
-Each message sent through the MessageMe system has two different types of
-charges associated with it: a **system charge** which is the amount which must
-be paid to MessageMe for the message to be sent, and a **recipient charge**
-which is the amount which must be paid to the message recipient for them to
-accept the message.  For a given message, the system and recipient charges can
-either be zero or a positive amount -- some messages may incur both a system
-and a recipient charge, some may incur just a system charge, some may incur
-just a recipient charge, and some messages may be free.  Charges are always
-measured in drops (millions of an XRP).
+Each message sent through the MessageMe system can have one or more
+**charges** associated with it.  The recipient may charge the sender for
+sending a message, and the MessageMe system itself will also generally charge
+for a message to be sent.  As well as message-related charges, other types of
+charges such as a monthly subscription charge may also be applied.
 
-As messages are sent, these charges are incurred by the message sender.  The
-charges are then paid to either the message recipient, or to MessageMe itself.
-To keep track of these payments, each user has their own **account** within the
+To keep track of these charges, and to ensure that the user is able to pay for
+the charges they have inccurred, each user has their own **account** within the
 MessageMe system.  Each account has a **current balance**, and a list of
-**transactions** recording the various deposits and withdrawals made against
-that account.  The user is able to **deposit** funds into their MessageMe
-account by transferring funds from their Ripple account to MessageMe, and
-MessageMe will automatically **withdraw** funds as required to cover the
-charges incurred while sending the user's messages.  If the user attempts to
-send a message when insufficient funds are available in their account, the
-message will fail with an `Insufficent Funds` error.
+**transactions** recording the various debits and credits made against that
+account.  The user is able to **deposit** funds into their MessageMe account by
+transferring funds from their Ripple account to MessageMe, and MessageMe will
+automatically **withdraw** funds as required to cover the charges incurred
+while sending the user's messages.  If the user attempts to send a message when
+insufficient funds are available in their account, the message will fail with
+an `Insufficent Funds` error.
 
-Recipient charges are paid to the message recipient, in the form of a deposit
-into their account.  Similarly, MessageMe itself has its own internal account,
-and all system charges are deposited into that account.  Another internal
-account, the **Ripple Holding Account**, is used to keep track of deposits made
-to MessageMe via the Ripple network -- this account is needed because the
-accounts within MessageMe follow standard double-entry bookeeping rules where
-every transaction involves both a credit and a debit.
+When a message is sent, there will generally be two different types of charges
+associated with it: the **message charge** is the amount that the sender pays to
+send the message, while the **system charge** is the amount that must be paid to
+MessageMe to forward the message on to the recipient.
 
-Funds can also be withdrawn from the user's MessageMe account and sent back to
-the user's Ripple account.  This can be done to retrieve funds given to
-MessageMe, or to take out funds which have been received in the form of
-recipient charges.
+Depending on how the conversation between the two users has been set up, there
+are two ways in which the system charge can be paid:
 
-Internally, each account has the following information associated with it:
+<ol start="1">
+  <li>
+    It can be paid by the sender:
+  </li>
+</ol>
+
+<center>
+  <img src="images/sender-pays.png">
+</center>
+
+> In this case, the sender will pay **both** the system charge and the message
+> charge -- that is, the total paid by the sender will equal the system charge
+> plus the message charge, across two separate transactions.
+
+<ol start="2">
+  <li>
+    It can be paid by the recipient:
+  </li>
+</ol>
+
+<center>
+  <img src="images/recipient-pays.png">
+</center>
+
+> In this case, the sender will pay just the message charge, and the recipient
+> will receive a net payment of the message charge minus the system charge.
+> The sender will have one transaction, and the recipient will have two.
+
+The question of who pays the system charge is decided on a message-by-message
+basis, and is specified by passing a `system_charge_paid_by` value when the
+message is submitted to the API.  Based on the `system_charge_paid_by` value,
+the API will do the following:
+
+> * If the `system_charge_paid_by` value is set to `"SENDER"`, the following
+>   steps will be taken:
+> 
+> > 1. If the `message_charge` amount is greater than zero, a transaction will
+> >    be created debiting the sender and crediting the recipient for this
+> >    amount.
+> > <br/><br/>
+> > 2. If the `system_charge` amount is greater than zero, a transaction will
+> >    be created debiting the sender and crediting the MessageMe System
+> >    Account for this amount.
+> 
+> * If the `system_charge_paid_by` value is set to "RECIPIENT", the following
+> steps will be taken:
+> 
+> > 1. If the recipient's account balance plus the `message_charge` amount is
+> >    less than the `system_charge` amount, then the message will be rejected
+> >    because the recipient cannot afford to pay the system charge.  Note that
+> >    this is unlikely to ever happen, as the client would normally ensure
+> >    that the message charge is high enough to at least pay the system
+> >    charge.
+> > <br/><br/>
+> > 2. If the `message_charge` amount is greater than zero, a transaction will
+> >    be created debiting the sender and crediting the recipient for this
+> >    amount.
+> > <br/><br/>
+> > 3. If the `system_charge` amount is greater than zero, a transaction will
+> >    be created debiting the recipient and crediting the MessageMe System
+> >    Account for this amount.
+
+Because the message and system charges are calculated on a message-by-message
+basis, this allows the client to waive these charges, or set them to zero for
+certain sets of messages.  The above logic ensures that the system will not
+create transactions unnecessarily, and that the appropriate person gets charged
+the correct amount for sending a message.
+
+Note that all transactions are recorded as a whole number of **drops**, where a
+drop is one millionth of an XRP.
+
+In addition to the user accounts, MessageMe has two special-purpose accounts
+which it uses internally:
+
+ * The **MessageMe System Account** is used to receive the system charges as
+   they are paid.
+<br/><br/>
+ * The **Ripple Holding Account** is used to keep track of deposits made to
+   MessageMe via the Ripple network -- this account is needed because the
+   accounts within MessageMe follow standard double-entry bookeeping rules
+   where every transaction involves both a credit and a debit.
+
+To deposit funds into the user's account, a Ripple transaction is first created
+transferring the funds from the user's Ripple account into MessageMe's Ripple
+account.  Once these funds have been transfered within Ripple, a corresponding
+`DEPOSIT` transaction within the MessageMe system is created, debiting the
+Ripple Holding Account and crediting the user's account for the amount that has
+been deposited.
+
+To withdraw funds, a `WITHDRAWAL` transaction is created within the MessageMe
+system, debiting the user's account and crediting the Ripple Holding Account.
+A Ripple transaction is then created transferring the desired funds from
+MessageMe's Ripple account back into the user's Ripple account.
+
+In this way, the Ripple Holding Account will mirror the current balance of the
+Ripple account used to hold the deposited funds within Ripple.
+
+Internally, every account has the following information associated with it:
 
 > `account_id`
 > 
@@ -236,15 +323,13 @@ transaction, the following information will be stored:
 > > > > funds being transferred from the MessageMe Ripple Holding account to
 > > > > the user's Ripple account.
 > > > 
-> > > `SYSTEM_CHARGE`
+> > > `CHARGE`
 > > > 
-> > > > A system charge, debiting the user's account and crediting the
-> > > > MessageMe account.
-> > > 
-> > > `RECIPIENT_CHARGE`
-> > > 
-> > > > A recipient charge, debiting the user's account and crediting the
-> > > > MessageMe account of the recipient.
+> > > > A charge paying for some user-initiated action.  The charge might go to
+> > > > another user (for example, to pay the message charge for sending a
+> > > > message), or it might go to the MessageMe account to pay the system
+> > > > charge for a message.  Note that charges can be both paid and received
+> > > > by a user.
 > > > 
 > > > `ADJUSTMENT`
 > > > 
@@ -422,7 +507,7 @@ Within the API, a message consists of the following information:
 > 
 > > The global ID of the user who sent this message.
 > 
-> `recipient_global_id`
+> `cliene`
 > 
 > > The global ID the user who received this message.
 > 
@@ -494,15 +579,22 @@ Within the API, a message consists of the following information:
 > 
 > > Has this action been processed by the recipient?
 > 
+> `message_charge`
+> 
+> > The amount to be paid by the sender for sending this message, as an integer
+> > number of drops.
+> 
 > `system_charge`
 > 
 > > The amount to be paid to MessageMe itself for sending this message, as an
 > > integer number of drops.
+
+> `system_charge_paid_by`
 > 
-> `recipient_charge`
-> 
-> > The amount to be paid to the recipient of the message for sending this
-> > message, as an integer number of drops.
+> > A string indicating who will pay the system charge.  One of:
+> > 
+> > > `SENDER`   
+> > > `RECIPIENT`
 > 
 > `status`
 > 
@@ -982,8 +1074,9 @@ containing the following JSON-format data:
 >           text: "...",
 >           action: "...",
 >           action_params: "...",
+>           message_charge: 10,
 >           system_charge: 5,
->           recipient_charge: 0,
+>           system_charge_paid_by: "...",
 >           status: "...",
 >           error: "..."},
 >          ...
@@ -1039,8 +1132,9 @@ containing the following JSON-format data:
 >          text: "...",
 >          action: "...",
 >          action_params: "...",
+>          message_charge: 10,
 >          system_charge: 5,
->          recipient_charge: 0,
+>          system_charge_paid_by: "...",
 >          status: "...",
 >          error: "..."}
 >     }
@@ -1062,12 +1156,14 @@ object:
 >           recipient_global_id: "...",
 >           sender_account_id: "...",
 >           recipient_account_id: "...",
+>           system_charge_paid_by: "...",
 >           sender_text: "...",
 >           recipient_text: "...",
 >           action: "...",
 >           action_params: "...",
+>           message_charge: 10,
 >           system_charge: 5,
->           recipient_charge: 0}
+>           system_charge_paid_by: "..."}
 >     }
 
 **_Notes_**:
@@ -1084,9 +1180,13 @@ object:
 > * The `action` and `action_params` fields are only required if the message
 >   has an action associated with it.
 > <br/></br>
-> * The `system_charge` and `recipient_charge` fields should be filled in with
+> * The `message_charge` and `system_charge` fields should be filled in with
 >   the appropriate charges for this message.  Before the message is delivered,
->   these charges will be deducted from the sender's account.
+>   these charges will be deducted from the sender and/or recipient accounts,
+>   as appropriate.
+> <br/><br/>
+> * The `system_charge_paid_by` field defines who will pay the system charge
+>   for this message.  This must be set to either `"SENDER"` or `"RECIPIENT"`.
 
 If the message was accepted, the API endpoint will return an HTTP response code
 of 202 (Accepted).  For straightforward messages, the message is accepted
@@ -1285,20 +1385,18 @@ depending on the value of the `return` parameter, as described below:
 > > > > > > funds being transferred from the MessageMe Ripple Holding account
 > > > > > > to the user's Ripple account.
 > > > > > 
-> > > > > `SYSTEM_CHARGE_PAID`
+> > > > > `CHARGE_PAID`
 > > > > > 
-> > > > > > A system charge, debiting the user's account and crediting the
-> > > > > > MessageMe account.
+> > > > > > A charge paying for some user-initiated action.  This type of
+> > > > > > transaction debits the user's account and credits some other
+> > > > > > account (either another user account, or the MessageMe system
+> > > > > > account).
 > > > > > 
-> > > > > `RECIPIENT_CHARGE_PAID`
+> > > > > `CHARGE_RECEIVED`
 > > > > > 
-> > > > > > A recipient charge, debiting the user's account and crediting the
-> > > > > > MessageMe account of the recipient.
-> > > > > 
-> > > > > `RECIPIENT_CHARGE_RECEIVED`
-> > > > > 
-> > > > > > A recipient charge, debiting the other user's MessageMe account and
-> > > > > > crediting the current user's MessageMe account.
+> > > > > > A charge received for some user-initiated action.  This type of
+> > > > > > transactions debits the other user's account and credits the
+> > > > > > current user's MessageMe account.
 > > > > > 
 > > > > > `ADJUSTMENT_PAID`
 > > > > > 
@@ -1475,9 +1573,13 @@ of 404 (Not Found).
 
 **`POST api/transaction`**
 
-Submit a transaction to the user's MessageMe account.  This API endpoint must
-use HMAC authentication.  The body of the request should be a string containing
-the following JSON-formatted object:
+Submit a transaction to the user's MessageMe account.  Only deposits and
+withdrawals can be created using this API endpoint; manual adjustments are
+created directly on the server, and charges are applied automatically by the
+API as various actions take place.
+
+This API endpoint must use HMAC authentication.  The body of the request should
+be a string containing the following JSON-formatted object:
 
 >     {global_id: "...",
 >      ripple_account: "...",

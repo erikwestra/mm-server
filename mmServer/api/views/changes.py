@@ -207,19 +207,20 @@ def changes_GET(request):
             status    = Message.STATUS_MAP[message.status]
 
             msg_data = {}
-            msg_data['hash']                = message.hash
-            msg_data['timestamp']           = timestamp
-            msg_data['sender_global_id']    = message.sender_global_id
-            msg_data['recipient_global_id'] = message.recipient_global_id
-            msg_data['sender_account_id']   = message.sender_account_id
-            msg_data['recipient_account_id'] = message.recipient_account_id
-            msg_data['sender_text']         = message.sender_text
-            msg_data['recipient_text']      = message.recipient_text
-            msg_data['action']              = message.action
-            msg_data['action_params']       = message.action_params
-            msg_data['action_processed']    = message.action_processed
-            msg_data['system_charge']       = message.system_charge
-            msg_data['recipient_charge']    = message.recipient_charge
+            msg_data['hash']                  = message.hash
+            msg_data['timestamp']             = timestamp
+            msg_data['sender_global_id']      = message.sender_global_id
+            msg_data['recipient_global_id']   = message.recipient_global_id
+            msg_data['sender_account_id']     = message.sender_account_id
+            msg_data['recipient_account_id']  = message.recipient_account_id
+            msg_data['sender_text']           = message.sender_text
+            msg_data['recipient_text']        = message.recipient_text
+            msg_data['action']                = message.action
+            msg_data['action_params']         = message.action_params
+            msg_data['action_processed']      = message.action_processed
+            msg_data['message_charge']        = message.message_charge
+            msg_data['system_charge']         = message.system_charge
+            msg_data['system_charge_paid_by'] = message.system_charge_paid_by
             msg_data['status']              = Message.STATUS_MAP[message.status]
 
             if message.error != None:

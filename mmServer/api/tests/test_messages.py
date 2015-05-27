@@ -112,14 +112,15 @@ class MessageTestCase(django.test.TestCase):
         recipient_text = utils.random_string()
 
         request = json.dumps(
-                        {'sender_global_id'     : sender_profile.global_id,
-                         'recipient_global_id'  : recipient_profile.global_id,
-                         'sender_account_id'    : sender_account_id,
-                         'recipient_account_id' : recipient_account_id,
-                         'sender_text'          : sender_text,
-                         'recipient_text'       : recipient_text,
-                         'system_charge'        : 1 * XRP,
-                         'recipient_charge'     : 2 * XRP,
+                        {'sender_global_id'      : sender_profile.global_id,
+                         'recipient_global_id'   : recipient_profile.global_id,
+                         'sender_account_id'     : sender_account_id,
+                         'recipient_account_id'  : recipient_account_id,
+                         'sender_text'           : sender_text,
+                         'recipient_text'        : recipient_text,
+                         'message_charge'        : 2 * XRP,
+                         'system_charge'         : 1 * XRP,
+                         'system_charge_paid_by' : "RECIPIENT",
                         })
 
         # Calculate the HMAC authentication headers we need to make an
@@ -157,22 +158,24 @@ class MessageTestCase(django.test.TestCase):
         self.assertEqual(message.recipient_text, recipient_text)
         self.assertIsNone(message.action)
         self.assertIsNone(message.action_params)
+        self.assertEqual(message.message_charge, 2 * XRP)
         self.assertEqual(message.system_charge, 1 * XRP)
-        self.assertEqual(message.recipient_charge, 2 * XRP)
+        self.assertEqual(message.system_charge_paid_by, "RECIPIENT")
         self.assertEqual(message.status, Message.STATUS_SENT)
         self.assertIsNone(message.error)
 
-        # Check that the user's account was decreased by 3 XRP to cover the
-        # two message charges.
+        # Check that the user's account was decreased by 2 XRP to cover the
+        # message charge.
 
         sender_account = Account.objects.get(id=sender_account.id)
-        self.assertEqual(sender_account.balance_in_drops, 47 * XRP)
+        self.assertEqual(sender_account.balance_in_drops, 48 * XRP)
 
-        # Check that the recipient's account was increased by the recipient
-        # charge of 2 XRP.
+        # Check that the recipient's account was increased by the message
+        # charge of 2 XRP, minus the system charge of 1 XRP, for a net increase
+        # of 1 XRP.
 
         recipient_account = Account.objects.get(id=recipient_account.id) # Reload.
-        self.assertEqual(recipient_account.balance_in_drops, 2 * XRP)
+        self.assertEqual(recipient_account.balance_in_drops, 1 * XRP)
 
         # Check that the MessageMe system account was increased by the system
         # charge of 1 XRP.
@@ -183,7 +186,7 @@ class MessageTestCase(django.test.TestCase):
 
     # -----------------------------------------------------------------------
 
-    @unittest.skip("Disabled until we support actions again.")
+    #@unittest.skip("Disabled until we support actions again.")
     def test_send_message_with_action(self):
         """ Test the logic of sending a message with an attached action.
         """
@@ -209,16 +212,17 @@ class MessageTestCase(django.test.TestCase):
         recipient_text = utils.random_string()
 
         request = json.dumps(
-                        {'sender_global_id'     : sender_profile.global_id,
-                         'recipient_global_id'  : recipient_profile.global_id,
-                         'sender_account_id'    : sender_account_id,
-                         'recipient_account_id' : recipient_account_id,
-                         'sender_text'          : sender_text,
-                         'recipient_text'       : recipient_text,
-                         'action'               : "SEND_XRP",
-                         'action_params'        : json.dumps({'amount' : 10}),
-                         'system_charge'        : 0,
-                         'recipient_charge'     : 0,
+                        {'sender_global_id'      : sender_profile.global_id,
+                         'recipient_global_id'   : recipient_profile.global_id,
+                         'sender_account_id'     : sender_account_id,
+                         'recipient_account_id'  : recipient_account_id,
+                         'sender_text'           : sender_text,
+                         'recipient_text'        : recipient_text,
+                         'action'                : "SEND_XRP",
+                         'action_params'         : json.dumps({'amount' : 10}),
+                         'message_charge'        : 0,
+                         'system_charge'         : 0,
+                         'system_charge_paid_by' : "RECIPIENT",
                         })
 
         # Calculate the HMAC authentication headers we need to make an
@@ -269,8 +273,9 @@ class MessageTestCase(django.test.TestCase):
         self.assertEqual(message.recipient_text, recipient_text)
         self.assertEqual(message.action, "SEND_XRP")
         self.assertEqual(message.action_params, json.dumps({'amount' : 10}))
+        self.assertEqual(message.message_charge, 0)
         self.assertEqual(message.system_charge, 0)
-        self.assertEqual(message.recipient_charge, 0)
+        self.assertEqual(message.system_charge_paid_by, "RECIPIENT")
         self.assertEqual(message.status, Message.STATUS_PENDING)
         self.assertIsNone(message.error)
 

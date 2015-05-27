@@ -173,8 +173,6 @@ def account_GET(request):
         account.balance_in_drops = 0
         account.save()
 
-    print account.global_id, repr(params)
-
     # Calculate the information to return, based on the value of the "get"
     # parameter.
 
@@ -257,15 +255,17 @@ def _legacy_account_GET(request):
             totals['deposits'] += transaction.amount_in_drops
         elif transaction.type == Transaction.TYPE_WITHDRAWAL:
             totals['withdrawals'] += transaction.amount_in_drops
-        elif transaction.type == Transaction.TYPE_SYSTEM_CHARGE:
+        elif transaction.type == Transaction.TYPE_CHARGE and \
+             transaction.credit_account.type == Account.TYPE_MESSAGEME:
             totals['system_charges'] += transaction.amount_in_drops
-        elif transaction.type == Transaction.TYPE_RECIPIENT_CHARGE:
+        elif transaction.type == Transaction.TYPE_CHARGE and \
+             transaction.credit_account.type == Account.TYPE_USER:
             totals['recipient_charges'] += transaction.amount_in_drops
         elif transaction.type == Transaction.TYPE_ADJUSTMENT:
             if transaction.debit_account == account:
                 totals['adjustments'] -= transaction.amount_in_drops
             elif transaction.credit_account == account:
-                totals['adjustments'] -= transaction.amount_in_drops
+                totals['adjustments'] += transaction.amount_in_drops
 
     response['account']['totals'] = totals
 
@@ -357,13 +357,11 @@ def _get_transactions(account, params):
             trans['type'] = "DEPOSIT"
         elif transaction.type == Transaction.TYPE_WITHDRAWAL:
             trans['type'] = "WITHDRAWAL"
-        elif transaction.type == Transaction.TYPE_SYSTEM_CHARGE:
-            trans['type'] = "SYSTEM_CHARGE_PAID"
-        elif transaction.type == Transaction.TYPE_RECIPIENT_CHARGE:
-            if account == transaction.debit_account:
-                trans['type'] = "RECIPIENT_CHARGE_PAID"
+        elif transaction.type == Transaction.TYPE_CHARGE:
+            if transaction.debit_account == account:
+                trans['type'] = "CHARGE_PAID"
             else:
-                trans['type'] = "RECIPIENT_CHARGE_RECEIVED"
+                trans['type'] = "CHARGE_RECEIVED"
         elif transaction.type == Transaction.TYPE_ADJUSTMENT:
             if account == transaction.debit_account:
                 trans['type'] = "ADJUSTMENT_PAID"
@@ -458,8 +456,7 @@ def _get_totals_by_type(account, params):
 
     # Calculate the charges paid.
 
-    matches = transactions.filter(type__in=[Transaction.TYPE_SYSTEM_CHARGE,
-                                            Transaction.TYPE_RECIPIENT_CHARGE],
+    matches = transactions.filter(type=Transaction.TYPE_CHARGE,
                                   debit_account=account)
     total = matches.aggregate(total=Sum('amount_in_drops'))['total']
 
@@ -469,7 +466,7 @@ def _get_totals_by_type(account, params):
 
     # Calculate the charges received.
 
-    matches = transactions.filter(type=Transaction.TYPE_RECIPIENT_CHARGE,
+    matches = transactions.filter(type=Transaction.TYPE_CHARGE,
                                   credit_account=account)
     total = matches.aggregate(total=Sum('amount_in_drops'))['total']
 
@@ -801,11 +798,10 @@ def _build_type_query(account, params):
     if params.get("type") == None:
         return Q(debit_account=account) | Q(credit_account=account)
     elif params.get("type") == "charges_paid":
-        return (Q(type__in=[Transaction.TYPE_SYSTEM_CHARGE,
-                            Transaction.TYPE_RECIPIENT_CHARGE]) &
+        return (Q(type=Transaction.TYPE_CHARGE) &
                 Q(debit_account=account))
     elif params.get("type") == "charges_received":
-        return (Q(type=Transaction.TYPE_RECIPIENT_CHARGE) &
+        return (Q(type=Transaction.TYPE_CHARGE) &
                 Q(credit_account=account))
     elif params.get("type") == "deposits":
         return (Q(type=Transaction.TYPE_DEPOSIT) &

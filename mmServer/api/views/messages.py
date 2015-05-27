@@ -136,20 +136,21 @@ def messages_GET(request):
             timestamp = utils.datetime_to_unix_timestamp(msg.timestamp)
             status    = Message.STATUS_MAP[msg.status]
 
-            message = {'hash'                 : msg.hash,
-                       'timestamp'            : timestamp,
-                       'sender_global_id'     : msg.sender_global_id,
-                       'recipient_global_id'  : msg.recipient_global_id,
-                       'sender_account_id'    : msg.sender_account_id,
-                       'recipient_account_id' : msg.recipient_account_id,
-                       'sender_text'          : msg.sender_text,
-                       'recipient_text'       : msg.recipient_text,
-                       'action'               : msg.action,
-                       'action_params'        : msg.action_params,
-                       'action_processed'     : msg.action_processed,
-                       'system_charge'        : msg.system_charge,
-                       'recipient_charge'     : msg.recipient_charge,
-                       'status'               : status}
+            message = {'hash'                  : msg.hash,
+                       'timestamp'             : timestamp,
+                       'sender_global_id'      : msg.sender_global_id,
+                       'recipient_global_id'   : msg.recipient_global_id,
+                       'sender_account_id'     : msg.sender_account_id,
+                       'recipient_account_id'  : msg.recipient_account_id,
+                       'sender_text'           : msg.sender_text,
+                       'recipient_text'        : msg.recipient_text,
+                       'action'                : msg.action,
+                       'action_params'         : msg.action_params,
+                       'action_processed'      : msg.action_processed,
+                       'message_charge'        : msg.message_charge,
+                       'system_charge'         : msg.system_charge,
+                       'system_charge_paid_by' : msg.system_charge_paid_by,
+                       'status'                : status}
             if msg.error:
                 message['error'] = msg.error
 
